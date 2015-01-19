@@ -1,5 +1,8 @@
 function [allEvents, aev_m] = get_all_events(mouse, sess, rec,irun,varargin)
-%reads a channel with the serial-transmitted trial numbers:
+%get all the events on a run
+%events are extracted from the corresponding channel of a binary file
+%it returns a matlab structure.
+
 %trialNumbers(:,i)=[onTime
 %                   words
 %                   ]
