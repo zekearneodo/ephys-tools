@@ -2,7 +2,7 @@
 mouse = 'ZKawakeM72';
 sess  = 6;
 rec   = 'a';
-run  = 1;
+run  = 2;
 ds=data_structure_tools;
 
 event = struct('event',[],'type',[],'chanId',[],'evtFcn',[]);
