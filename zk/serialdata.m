@@ -82,7 +82,7 @@ classdef serialdata < handle
         
         %get the beginnings of words
         function obj = get_bytes(obj)
-            fprintf('Parsing bytes out of the stream...');
+            fprintf('Parsing bytes out of the stream...\n');
             s=obj.serial;
             
             bytePars = struct('dur',[], 'len',[], 'bitDur',[],'bitLen', [],'totalBits',[], 'bitMidPoints',[],...
@@ -113,9 +113,11 @@ classdef serialdata < handle
             
             %make sure that it starts high and finishes high
             if up(1)<down(1)
+                warning('Stream starts lo: probably first byte and word are corrupted');
                 up(1) = [];
             end
             if down(end)>up(end)
+                warning('Stream ends lo: probably first byte and word are corrupted');
                 down(end)=[];
             end
           
@@ -244,6 +246,7 @@ classdef serialdata < handle
             consecutive = zeros(size(lags));
             
             consecutive(find(lags<samplesTimeOut))=1;
+            
             %get blocks of at least wordLength consecutive:
             % gets starts of chunks between timeOuts
             chunkStarts = find(diff(consecutive)==1)-1;
@@ -255,6 +258,7 @@ classdef serialdata < handle
             if chunkEnds(1) < chunkStarts(1)
                 chunkEnds(1) = [];
             end
+            chunkStarts(find(chunkStarts==0))=[];
             %get blocks of at least wordLength consecutive:
             wordStarts = [];
             for iChunk = 1: numel(chunkStarts)
