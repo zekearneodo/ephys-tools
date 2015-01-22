@@ -4,16 +4,17 @@
 function ds = data_structure_tools()
 global ds
 
+    ds.match_trial_numbers = @match_trial_numbers; %get trial numbers and match them with trial pin events
     ds.get_analog_events = @get_analog_events; %get occurrences of an analog event 
     ds.get_trial_numbers = @get_trial_numbers; % get the trial numbers
     ds.get_data_stream   = @get_data_stream; %get stream of data from binary file
     ds.get_info          = @get_info; %gets info structures for rec, run
-
+    ds.check_list        = @check_list; %checks a list for repeated or skipped positions
 end
 
 
 
-function tn = get_trials(mouse,sess,rec,run)
+function tn = match_trial_numbers(mouse,sess,rec,run)
 %gets the time stamps of trial pins (on/off)
 %gets the trial number that corresponds to that pin
 %makes a table of the trial number and its correspondign pin
@@ -30,8 +31,38 @@ tp.type   = 'digital';
 tp.chanId = 'trPin';
 tp.events = get_analog_events(tp.chanId,mouse,sess,rec,run,'figures','noplot');
 
-%make the correspondence between the trial pins and the trial numbers.
+%assign to every element in trial_number the immediate next trialPin
+% 2 steps:
+% pair every trNumber with the first next trPin
+% look for n-uplicates and discard the first
+%get the indexes of the trialPins that correspond to every trial
+numStartPins = arrayfun(@(x) find(tp.events(1,:)>x,1),[tn.events.on]);
+tStartPins   = tp.events(1,numStartPins);
+%look for errors in the list
+er = check_list(numStartPins);
+if ~isempty(find(er==1, 1))
+    warning('Some trial pins did not have a matching trial number');
+end
+if ~isempty(find(er==2, 1))
+    warning('Some trial pins had repeated trial number');
+    %find the repeated numbers and un-match the further trial numbers from
+    %a degenerate trial pin
+    repTP=unique(numStartPins(diff(numStartPins)==0));
+    fprintf('Solving %d degenerate trial pins:\n',numel(repTP));
+    for pin=repTP
+         %gather the indices of the trial numbers that share the same pin
+         degTId=find(numStartPins==pin);
+         rightTN = degTId(find([tn.events(degTId).on]<tp.events(1,1),1,'last'));
+         badTId  = degTId(~(degTId==rightTN));
+         numStartPins(badTId) = nan;
+         tStartPins(badTId)   = nan;
+    end
+end
 
+tn.table.trial_num   = [tn.events.value];
+tn.table.trial_on    = [tn.events.on];
+tn.table.trial_pin   = numStartPins;
+tn.table.trial_start = tStartPins;
 end
 
 function get_fv(mouse,sess,rec,irun)
@@ -47,8 +78,8 @@ function get_laser(mouse,sess,rec,irun)
 %gets the trial number that corresponds to that laser
 %gets the laser parameter that correspond to that laser event
 
-end
 
+end
 
 function [allEvents, aev_m] = make_events_tables(mouse, sess, rec,irun,varargin)
 %get all the events on a run
@@ -347,13 +378,13 @@ inPar.addRequired('mouse')
 inPar.addRequired('sess')
 inPar.addRequired('rec',@ischar)
 inPar.addRequired('irun',@isscalar)
-inPar.addParamValue('figures','plot',@(x) ischar(x) && any(strcmpi(x,{'plot','noplot'})));
+inPar.addParameter('figures','plot',@(x) ischar(x) && any(strcmpi(x,{'plot','noplot'})));
 inPar.addParamValue('aqSystem','JFRC',@(x) ischar(x) && any(strcmpi(x,{'JFRC','intan'})));
 inPar.addParamValue('threshold',0.25,@(x) isscalar(x)); %threshold in volts
 inPar.addParamValue('chanGain',1,@(x) isscalar(x));
 
 inPar.parse(chanName,mouse,sess, rec,irun,varargin{:});
-figsOn=inPar.Results.figures;
+figsOn=strcmpi('plot',inPar.Results.figures);
 eventChanName=inPar.Results.chanName;
 
 %get the info for the rec and for the run
@@ -489,6 +520,40 @@ trialNumbers = arrayfun(@(x,y) struct('on',x,'value',y),stamps,numbers);
 
 end
 
+function [trials, table] = get_voyeur_table(mouse,sess,rec,run)
+%reads the table in a voyeur-generated behavior file for a run.
+% Assumes there is only one table and that table is the trial data
+% Doesn't care about the streams
+% returns:
+% trials : array of trial structures with data in mlab format (double and char)
+% table  : h5-formatted table, as it was read.
+
+
+
+[~, runInfo] = get_info(mouse,sess,rec,run);
+fn = file_names(mouse,sess,rec,run);
+
+fnam    = fullfile(fn.fold_rd_sess, runInfo.behav_data);
+hinfo   = h5info(fnam);
+
+n_tr = numel(hinfo.Groups);
+table_name = hinfo.Datasets.Name;
+table = h5read(fnam,['/', table_name]);
+ff = fieldnames(table);
+trials = struct();
+
+for kf = 1:numel(ff)
+    for it = 1:n_tr
+        if ischar(table.(ff{kf}))
+            trials(it).(ff{kf}) = deblank(table.(ff{kf})(:,it)');
+        else
+            trials(it).(ff{kf}) = double(table.(ff{kf})(it,1));
+        end
+    end
+end
+
+end
+
 function stream = get_data_stream(chanName, mouse,sess,rec,irun,varargin)
 %read a stream of data from a binary file
         %read a channel with recorded events
@@ -549,4 +614,25 @@ fn = file_names(mouse, sess,rec);
 q = load(fn.sess_info);
 recInfo = q.info.rec(strcmpi(rec,{q.info.rec.name}));
 runInfo = recInfo.run([recInfo.run.num]==irun);
+end
+
+function errorCode = check_list(list)
+% checks on a list of numbers
+% returns a list of codes:
+% [] if everytihg is ok
+% 1: skipped numbers
+% 2: repeated numbers
+errorCode = [];
+
+%check if there were skipped numbers
+if sum(diff(list)>1)
+    errorCode = [errorCode 1];
+    warning('Skipped numbers in the list');
+end
+
+if sum(diff(list)<1)
+    errorCode = [errorCode 2];
+    warning('Repeated numbers in the list');
+end
+    
 end
