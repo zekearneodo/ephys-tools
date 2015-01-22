@@ -12,8 +12,6 @@ global ds
     ds.check_list        = @check_list; %checks a list for repeated or skipped positions
 end
 
-
-
 function tn = match_trial_numbers(mouse,sess,rec,run)
 %gets the time stamps of trial pins (on/off)
 %gets the trial number that corresponds to that pin
