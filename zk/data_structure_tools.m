@@ -35,7 +35,11 @@ tp.events = get_analog_events(tp.chanId,mouse,sess,rec,run,'figures','noplot');
 % 2 steps:
 % pair every trNumber with the first next trPin
 % look for n-uplicates and discard the first
-%get the indexes of the trialPins that correspond to every trial
+%get the first pin that comes after a trial number.
+%there can be a degenaracy: several trial numbers have the same pin.
+%this means a trial number was sent in between trial pins, in which case
+%we want to keep the closest (the latest) trial number to that pin
+%the pins after every trial number
 numStartPins = arrayfun(@(x) find(tp.events(1,:)>x,1),[tn.events.on]);
 tStartPins   = tp.events(1,numStartPins);
 %look for errors in the list
@@ -44,15 +48,16 @@ if ~isempty(find(er==1, 1))
     warning('Some trial pins did not have a matching trial number');
 end
 if ~isempty(find(er==2, 1))
-    warning('Some trial pins had repeated trial number');
+    warning('Some trial pins have several ');
     %find the repeated numbers and un-match the further trial numbers from
     %a degenerate trial pin
     repTP=unique(numStartPins(diff(numStartPins)==0));
     fprintf('Solving %d degenerate trial pins:\n',numel(repTP));
     for pin=repTP
          %gather the indices of the trial numbers that share the same pin
+         %get the degenerate pin event numbers
          degTId=find(numStartPins==pin);
-         rightTN = degTId(find([tn.events(degTId).on]<tp.events(1,1),1,'last'));
+         rightTN = degTId(find([tn.events(degTId).on]<tp.events(1,pin),1,'last'));
          badTId  = degTId(~(degTId==rightTN));
          numStartPins(badTId) = nan;
          tStartPins(badTId)   = nan;
