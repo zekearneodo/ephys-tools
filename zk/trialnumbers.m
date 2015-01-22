@@ -1,7 +1,7 @@
 %for debugging trial number and trial pin lookup
 mouse = 'ZKawakeM72';
 sess  = 7;
-rec   = 'b';
+rec   = 'c';
 run  = 1;
 ds=data_structure_tools;
 
