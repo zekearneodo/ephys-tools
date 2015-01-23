@@ -66,3 +66,12 @@ for ie=1:numel(eventsList)
 end
 plot(32768-evt.trialNum.stream.data(pr),'k');
 
+figure(3)
+hold on
+pr = (8363088):(11460528);
+for ie=1:numel(eventsList)
+    event=eventsList(ie);
+    evName = event.event;
+    plot(evt.(evName).stream.data(pr),event.plotcolor);
+end
+plot(32768-evt.trialNum.stream.data(pr),'k');

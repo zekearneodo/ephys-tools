@@ -68,12 +68,16 @@ tn.table.trial_pin   = numStartPins;
 tn.table.trial_start = tStartPins;
 end
 
-function get_fv(mouse,sess,rec,irun)
+function to=get_fv(mouse,sess,rec,irun)
 %gets the final valve time stamps
 %gets the trial number that corresponds to that opening
 %gets the odor parameters that correspond to that fv opening
-
+    to.name   = 'finalValve_1';
+    to.type   = 'digital';
+    to.chanId = 'FvPin';
+    to.get_analog_events(to.chanId,mouse,sess,rec,run,'figures','noplot');
     
+    trPar = read_voyeur_fields(
 end
 
 function get_laser(mouse,sess,rec,irun)
@@ -639,3 +643,13 @@ if sum(diff(list)<1)
 end
     
 end
+
+function vt = read_voyeur_fields(evName,mouse,sess,rec,run);
+% reads a voyeur table and translates the fields for the right type of
+% event
+%it uses default voyeur_definitions for name translations
+vd=voyeur_definitions(evName,mouse,sess,rec,run);
+
+[~,table] = get_voyeur_table(mouse,sess,rec,run,'fieldsList',fieldsList);
+end
+

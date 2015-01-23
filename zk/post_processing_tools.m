@@ -278,7 +278,6 @@ function V = basicVoyeurRead(fnam, event_names, stream_names)
         end
         fprintf(' done (%d events) \n',numel(events{kn}))
     end
-    
 end
 
 function trial_shift_estim(mouse, sess, varargin)

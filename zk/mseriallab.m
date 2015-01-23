@@ -1,9 +1,9 @@
 clear serialNumbers serialdata virtualserial
 close all
 %get me a serial from a mouse
-mouse = 'ZKsystemtest';
-sess  = '006';
-rec   = 'a';
+mouse = 'ZKawakeM72';
+sess  = '007';
+rec   = 'c';
 irun   = 1;
 chanName = 'trNum';
 
