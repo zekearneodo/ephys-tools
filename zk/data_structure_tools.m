@@ -2,12 +2,17 @@
 %
 %
 function ds = data_structure_tools()
-global ds
-
+global ds;
+[~,computerName]=system('hostname');
+if ~strcmp(strtrim(computerName),'flipper')
+    includePath=fullfile(fileparts(pwd),'current','include');
+    addpath(includePath);
+end
     ds.match_trial_numbers = @match_trial_numbers; %get trial numbers and match them with trial pin events
     ds.get_analog_events = @get_analog_events; %get occurrences of an analog event 
     ds.get_trial_numbers = @get_trial_numbers; % get the trial numbers
     ds.get_data_stream   = @get_data_stream; %get stream of data from binary file
+    ds.get_voyeur_table  = @get_voyeur_table; %get a voyeur table (or fields of it)
     ds.get_info          = @get_info; %gets info structures for rec, run
     ds.check_list        = @check_list; %checks a list for repeated or skipped positions
 end
@@ -77,7 +82,7 @@ function to=get_fv(mouse,sess,rec,irun)
     to.chanId = 'FvPin';
     to.get_analog_events(to.chanId,mouse,sess,rec,run,'figures','noplot');
     
-    trPar = read_voyeur_fields(
+    trPar = read_voyeur_fields();
 end
 
 function get_laser(mouse,sess,rec,irun)
@@ -538,7 +543,7 @@ function [trials, table] = get_voyeur_table(mouse,sess,rec,run)
 
 
 [~, runInfo] = get_info(mouse,sess,rec,run);
-fn = file_names(mouse,sess,rec,run);
+fn = file_names(mouse,sess,rec);
 
 fnam    = fullfile(fn.fold_rd_sess, runInfo.behav_data);
 hinfo   = h5info(fnam);
@@ -647,9 +652,41 @@ end
 function vt = read_voyeur_fields(evName,mouse,sess,rec,run);
 % reads a voyeur table and translates the fields for the right type of
 % event
-%it uses default voyeur_definitions for name translations
 vd=voyeur_definitions(evName,mouse,sess,rec,run);
+
 
 [~,table] = get_voyeur_table(mouse,sess,rec,run,'fieldsList',fieldsList);
 end
 
+function vd = voyeur_definitions(evName,mouse,sess,rec,run)
+%it uses default voyeur_definitions for name translations, unless there is
+%a voyeur_definitions function in the mouse folder or addressed in the 
+%here it checks if its indicated that it has to use other definitions
+%vd_check
+%(if it finds them; loads them and returns. if it doesnt, goes ahead)
+%definitions:
+% new columns:
+
+if strcmpi(evName,'finalValve')
+    vd.table = extract_finalValve_pars(evName);
+    return
+end
+
+if strcmpi(evName,'laser')
+    vd.table = extract_laser_pars(evName);
+    return
+end
+   
+
+%~~~~ the functions for getting the tables
+
+    function extract_finalValve_pars(evName)
+        evNameSplit=strsplit(evName,'_');
+        evNum = str2double(evNameSplit(end));
+        %generate the fields to get from the voyeur_table
+        fieldsList = {'AirFlow','NitrogenFlow',};
+        fieldsList = {'dillution','fvOnTime','fvDur','fvtrig_on_exh','odor','odorconc','stimtype','trialNumber','trial_complete',
+            'vial','vialconc'}
+    end
+
+end
