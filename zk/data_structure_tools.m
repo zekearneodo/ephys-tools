@@ -9,14 +9,25 @@ if ~strcmp(strtrim(computerName),'flipper')
     addpath(includePath);
 end
     ds.match_trial_numbers = @match_trial_numbers; %get trial numbers and match them with trial pin events
-    ds.get_analog_events = @get_analog_events; %get occurrences of an analog event 
-    ds.get_trial_numbers = @get_trial_numbers; % get the trial numbers
-    ds.get_data_stream   = @get_data_stream; %get stream of data from binary file
-    ds.get_voyeur_table  = @get_voyeur_table; %get a voyeur table (or fields of it)
-    ds.get_info          = @get_info; %gets info structures for rec, run
-    ds.check_list        = @check_list; %checks a list for repeated or skipped positions
+    ds.get_analog_events   = @get_analog_events; %get occurrences of an analog event 
+    ds.get_trial_numbers   = @get_trial_numbers; % get the trial numbers
+    ds.get_data_stream     = @get_data_stream; %get stream of data from binary file
+    ds.get_voyeur_table    = @get_voyeur_table; %get a voyeur table (or fields of it)
+    ds.read_voyeur_fields  = @read_voyeur_fields; %read fields for an in voyeur file
+    ds.voyeur_definitions  = @voyeur_definitions; %get a structure with parameter name translations for an event 
+    ds.get_info            = @get_info; %gets info structures for rec, run
+    ds.check_list          = @check_list; %checks a list for repeated or skipped positions
+    
+    ds.h52m_table          = @h52m_table; %reformats an h5 table into matlab data types
 end
 
+function tr = make_tables(mouse,sess,rec,run)
+%make all the event tables for a run
+%these tables will be then gathered and put together in a table for each
+%rec
+
+
+end
 function tn = match_trial_numbers(mouse,sess,rec,run)
 %gets the time stamps of trial pins (on/off)
 %gets the trial number that corresponds to that pin
@@ -67,10 +78,10 @@ if ~isempty(find(er==2, 1))
     end
 end
 
-tn.table.trial_num   = [tn.events.value];
-tn.table.trial_on    = [tn.events.on];
-tn.table.trial_pin   = numStartPins;
-tn.table.trial_start = tStartPins;
+tn.table.trialNumber = [tn.events.value];
+tn.table.trialOn     = [tn.events.on];
+tn.table.trialPin    = numStartPins;
+tn.table.trialStart  = tStartPins;
 end
 
 function to=get_fv(mouse,sess,rec,irun)
@@ -80,9 +91,18 @@ function to=get_fv(mouse,sess,rec,irun)
     to.name   = 'finalValve_1';
     to.type   = 'digital';
     to.chanId = 'FvPin';
-    to.get_analog_events(to.chanId,mouse,sess,rec,run,'figures','noplot');
+   
+    % Now the easy part is done its time to work.
+    % Two ways of doing this:
+    %  Get the timestamps of the clean events of the channel
+    %  Look them up after their closest trialstart pin
+    %  Get the trial number that corresponds to that pin
+    % Way2
+    %  Go through the trial numbers that have a good trial pin
+    %  get the closest event after that pin (whithin the pin on and off)
+    %  lookup that pin in the trialnumber table and get the trial number
     
-    trPar = read_voyeur_fields();
+    
 end
 
 function get_laser(mouse,sess,rec,irun)
@@ -472,6 +492,18 @@ onEvents=[eventSample;eventAmp*int2volt];
 
 end
 
+function events_lookup(ev,mouse,sess,rec,run)
+%easier way to lookup trial numbers for an event
+%  Go through the trial numbers that have a good trial pin
+%  get the closest event after that pin (whithin the pin on and off)
+%  lookup that pin in the trialnumber table and get the trial number
+% ev.name : name of the event
+% ev.type : type of event (for extraction of the pins)
+% ev.
+
+
+end
+
 function [trialNumbers]=get_trial_numbers(mouse, sess, rec,irun,varargin)
 %reads a channel with the serial-transmitted trial numbers:
 %trialNumbers(:,i)=[onTime
@@ -532,14 +564,21 @@ trialNumbers = arrayfun(@(x,y) struct('on',x,'value',y),stamps,numbers);
 
 end
 
-function [trials, table] = get_voyeur_table(mouse,sess,rec,run)
+function [trials, table] = get_voyeur_table(mouse,sess,rec,run,varargin)
 %reads the table in a voyeur-generated behavior file for a run.
 % Assumes there is only one table and that table is the trial data
 % Doesn't care about the streams
 % returns:
 % trials : array of trial structures with data in mlab format (double and char)
 % table  : h5-formatted table, as it was read.
+inPar=inputParser;
+inPar.addRequired('mouse')
+inPar.addRequired('sess')
+inPar.addRequired('rec',@ischar)
+inPar.addRequired('run',@isscalar)
+inPar.addParameter('selectedFields',[], @iscell);
 
+inPar.parse(mouse,sess, rec,run,varargin{:});
 
 
 [~, runInfo] = get_info(mouse,sess,rec,run);
@@ -552,6 +591,22 @@ n_tr = numel(hinfo.Groups);
 table_name = hinfo.Datasets.Name;
 table = h5read(fnam,['/', table_name]);
 ff = fieldnames(table);
+
+if ~isempty(inPar.Results.selectedFields)
+    keepFields = inPar.Results.selectedFields;
+    %check that all the fields exist
+    checked = cellfun(@(x) any(strcmp(x,ff)),keepFields);
+    if any(~checked)
+        warning('Some fields requested not found in the voyeur table');
+    end
+    %remove all the fields that do not appear in keepFields
+    rmf = ~cellfun(@(x) sum(strcmp(x,keepFields)),ff);
+    fieldsToRemove = ff(find(rmf));
+    table = rmfield(table,fieldsToRemove);
+    ff(find(rmf))=[];
+end
+
+%Make a structure array of this table
 trials = struct();
 
 for kf = 1:numel(ff)
@@ -649,13 +704,33 @@ end
     
 end
 
-function vt = read_voyeur_fields(evName,mouse,sess,rec,run);
+function [trials, table] = read_voyeur_fields(evName,mouse,sess,rec,run)
 % reads a voyeur table and translates the fields for the right type of
 % event
+%get the list of parameters saved and how their names translate to voyeur
+%table
 vd=voyeur_definitions(evName,mouse,sess,rec,run);
+%vd.trialFields %for the trial
+%vd.evtFields %for the event
 
+%get all those fields from the table and convert the table to matlab
+%datatypes
+fieldsList = [ vd.trialFields ; vd.evtFields];
+[trials, table]= get_voyeur_table(mouse,sess,rec,run,'selectedFields',fieldsList(:,2));
+table=h52m_table(table);
 
-[~,table] = get_voyeur_table(mouse,sess,rec,run,'fieldsList',fieldsList);
+%translate the names of the fields into the program names
+for jf=1:length(fieldsList)
+    oldField = fieldsList{jf,2}
+    newField = fieldsList{jf,1}
+    [trials.(newField)] = trials.(oldField);
+    [table.(newField)]  = table.(oldField);
+    trials = rmfield(trials, oldField);
+    table  = rmfield(table, oldField);
+end
+
+       
+
 end
 
 function vd = voyeur_definitions(evName,mouse,sess,rec,run)
@@ -666,27 +741,96 @@ function vd = voyeur_definitions(evName,mouse,sess,rec,run)
 %(if it finds them; loads them and returns. if it doesnt, goes ahead)
 %definitions:
 % new columns:
+%it returns vd structure with
+%  trialFields : fields describing the trial 
+%  evtFields   : fields describing the event named evName
+% each variable xFields is a cell array of {'nameInDataStructure',
+% 'nameInVoyeur'};
 
-if strcmpi(evName,'finalValve')
-    vd.table = extract_finalValve_pars(evName);
+%description of trials
+vd.trialFields = [ {'trialNumber','trialNumber'}
+                {'trialComplete','trial_complete'}
+                {'trialDuration','trialdur'}
+                {'trialStart', 'starttrial'}
+                {'trialEnd', 'endtrial'}
+                {'trialIti', 'iti'}
+                {'trialType','trialtype'}
+                {'stimType','stimtype'}
+                {'stimDescription','stim_desc'}
+                {'noSniff','no_sniff'}
+                {'paramsGot','paramsgottime'}
+                {'result','result'}
+                {'sniffDelay','sniffmaxdelay'}
+                {'inhOnset','inh_onset'}
+                ];
+            
+if strfind(evName,'finalValve')
+    vd.evtFields = extract_finalValve_pars(evName);
     return
 end
 
-if strcmpi(evName,'laser')
-    vd.table = extract_laser_pars(evName);
+if strfind(evName,'laser')
+    vd.evtFields = extract_laser_pars(evName);
     return
 end
    
 
 %~~~~ the functions for getting the tables
 
-    function extract_finalValve_pars(evName)
+    function evtFields=extract_finalValve_pars(evName)
         evNameSplit=strsplit(evName,'_');
-        evNum = str2double(evNameSplit(end));
+        evNum = (evNameSplit{end});
         %generate the fields to get from the voyeur_table
-        fieldsList = {'AirFlow','NitrogenFlow',};
-        fieldsList = {'dillution','fvOnTime','fvDur','fvtrig_on_exh','odor','odorconc','stimtype','trialNumber','trial_complete',
-            'vial','vialconc'}
-    end
+        evtFields = [  {['AirFlow_' evNum],['AirFlow_' evNum]}
+                        {['NitrogenFlow_' evNum],['NitrogenFlow_' evNum]}
+                        {'dillution', 'dillution'}
+                        {'finalValveOnTime', 'fvOnTime'}
+                        {'finalValveDuration', 'fvdur'}
+                        {'finalValveTrigExh', 'fvtrig_on_exh'}
+                        {'odor', 'odor'}
+                        {'odorConcentration','odorconc'}
+                        {'vial', 'vial'}
+                        {'vialConcentration','vialconc'}];
 
+    end %function extract_final_valve
+    %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    function evtFields= extract_laser_pars(evName)
+        evNameSplit=strsplit(evName,'_');
+        evNum = (evNameSplit{end});
+        %generate the fields to get from the voyeur_table
+        evtFields = [  
+            {['laserIntensity_' evNum],['LaserIntensity_' evNum]}
+            {['laserAmplitude_' evNum],['amplitude_' evNum]}
+            {['pulseOnDur_' evNum],['pulseOnDur_' evNum]}
+            {['pulseOffDur_' evNum],['pulseOffDur_' evNum]}
+            {['pulseOnsetDelay_' evNum],['pulseOnDelay_' evNum]}
+            {['trainLength_' evNum],['trainLength_' evNum]}
+            {'laserMultiSniff', 'laser_multi_sniff'}
+            {'laserTrigExh', 'laser_on_exh'}
+            {'laserOnTime', 'laserontime'}
+            {'numLasers','lasersnum'}
+            ];
+    end %function extract_final_valve
+    
+end
+
+function table = h52m_table(table)
+%gets an h5read table and re-format it to matlab-friendly data types
+%very basic: just double for num classes
+fieldsList = fields(table);
+for jf = 1:numel(fieldsList)
+    fieldName = fieldsList{jf};
+    if isnumeric(table.(fieldName))
+        % all numeric types go to double
+        table.(fieldName) = double(table.(fieldName));
+    elseif ischar(table.(fieldName))
+        %the table goes to a cell array
+        newCol = [];
+        for il = 1:length(table.(fieldName))
+            newCol = [newCol ; {deblank(table.(fieldName)(:,il)')}];
+        end
+        rmfield(table,fieldName);
+        table.(fieldName) = newCol;
+    end
+end
 end
