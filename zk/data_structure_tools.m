@@ -21,13 +21,47 @@ end
     ds.h52m_table          = @h52m_table; %reformats an h5 table into matlab data types
 end
 
-function tr = make_tables(mouse,sess,rec,run)
+function evt = make_tables(mouse,sess,rec,run)
 %make all the event tables for a run
 %these tables will be then gathered and put together in a table for each
 %rec
 
+%where words is a structure containing the bytes.
+event = struct('event',[],'type',[],'chanId',[],'evtFcn',[]);
+inputPar = struct('par',[],'default',[],'validation',[]);
+
+%%% DEFINITIONS OF EVENTS AND PARAMETERS
+% this will eventually go in a file for the session or the experiment
+eventsList = [];
+
+% trial pin
+event.name   = 'trialPin';
+event.type   = 'digital';
+event.chanId = 'trPin';
+event.evtFcn = @get_analog_events;
+eventsList   = [eventsList event];
+
+% final valve pin
+event.name   = 'finalValve_1';
+event.type   = 'digital';
+event.chanId = 'FVPin';
+event.evtFcn = @get_analog_events;
+eventsList   = [eventsList event];
+
+% laser
+event.name   = 'laser_1';
+event.type   = 'semiDigital';
+event.chanId = 'Laser';
+event.evtFcn = @get_analog_events;
+eventsList   = [eventsList event];
+
+
+%get and match the trial numbers with the trial pins
+trialNumbers = match_trial_numbers(mouse,sess,rec,run);
+
 
 end
+
 function tn = match_trial_numbers(mouse,sess,rec,run)
 %gets the time stamps of trial pins (on/off)
 %gets the trial number that corresponds to that pin
@@ -56,13 +90,14 @@ tp.events = get_analog_events(tp.chanId,mouse,sess,rec,run,'figures','noplot');
 %the pins after every trial number
 numStartPins = arrayfun(@(x) find(tp.events(1,:)>x,1),[tn.events.on]);
 tStartPins   = tp.events(1,numStartPins);
+tEndPins     = tp.events(2,numStartPins);
 %look for errors in the list
 er = check_list(numStartPins);
 if ~isempty(find(er==1, 1))
     warning('Some trial pins did not have a matching trial number');
 end
 if ~isempty(find(er==2, 1))
-    warning('Some trial pins have several ');
+    warning('Some trial pins have several trial numbers in between');
     %find the repeated numbers and un-match the further trial numbers from
     %a degenerate trial pin
     repTP=unique(numStartPins(diff(numStartPins)==0));
@@ -75,13 +110,19 @@ if ~isempty(find(er==2, 1))
          badTId  = degTId(~(degTId==rightTN));
          numStartPins(badTId) = nan;
          tStartPins(badTId)   = nan;
+         tEndPins(badTId)     = nan;
     end
 end
+
+%todo: check trial duration consistence
 
 tn.table.trialNumber = [tn.events.value];
 tn.table.trialOn     = [tn.events.on];
 tn.table.trialPin    = numStartPins;
 tn.table.trialStart  = tStartPins;
+tn.table.trialEnd    = tEndPins;
+%tn.meta = %some metadata that will be added when save in h5 format
+
 end
 
 function to=get_fv(mouse,sess,rec,irun)
@@ -492,15 +533,39 @@ onEvents=[eventSample;eventAmp*int2volt];
 
 end
 
-function events_lookup(ev,mouse,sess,rec,run)
+function events_lookup(ev,tn,mouse,sess,rec,run)
 %easier way to lookup trial numbers for an event
 %  Go through the trial numbers that have a good trial pin
 %  get the closest event after that pin (whithin the pin on and off)
 %  lookup that pin in the trialnumber table and get the trial number
-% ev.name : name of the event
-% ev.type : type of event (for extraction of the pins)
-% ev.
+% ev.name   : name of the event
+% ev.type   : type of event (for extraction of the pins)
+% ev.chanId : id of the channel where the event is
+% ev.evtFcn : pointer to the function used to extract timestamps and values
+% Example:
+% event.name   = 'finalValve_1';
+% event.type   = 'digital';
+% event.chanId = 'FVPin';
+% event.evtFcn = @get_analog_events;
+% get the events
 
+events = get_analog_events(ev.chanId,mouse,sess,rec,run,'figures','noplot');
+% go through all the trial numbers that have a good trial pin and find the
+% events whithin that trial
+table = [];
+for itp = find(~isnan(tn.table.trialPin))
+    tPinStamps = [tn.table.trialStart(itp);tn.table.trialEnd(itp)];
+    trialNumber = tn.table.trialNumber(itp);
+    if any(isnan(tPinStamps)) || ~(diff(tPinStamps)>0)
+        warning('Wrong timestamps in trial %d\n',trialNumber);
+        continue
+    end
+    % lookup the event(s) within the trial
+    % (get the rows in the event table, then check them, then append them
+    % to the table)
+    evIdx = find((events(1,:)>=tPinStamps(1)) & (events(2,:) <= tPinStamps(2)));
+    ev
+end
 
 end
 
