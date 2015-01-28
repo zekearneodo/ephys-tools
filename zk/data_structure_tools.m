@@ -35,29 +35,41 @@ inputPar = struct('par',[],'default',[],'validation',[]);
 eventsList = [];
 
 % trial pin
-event.name   = 'trialPin';
-event.type   = 'digital';
-event.chanId = 'trPin';
-event.evtFcn = @get_analog_events;
-eventsList   = [eventsList event];
+event.name     = 'trialPin';
+event.type     = 'digital';
+event.chanId   = 'trPin';
+event.evtFcn   = @get_analog_events;
+event.tableFcn = @check_trial_pin;
+%eventsList     = [eventsList event];
 
 % final valve pin
-event.name   = 'finalValve_1';
-event.type   = 'digital';
-event.chanId = 'FVPin';
-event.evtFcn = @get_analog_events;
-eventsList   = [eventsList event];
+event.name     = 'finalValve_1';
+event.type     = 'digital';
+event.chanId   = 'FVPin';
+event.evtFcn   = @get_analog_events;
+event.tableFcn = @make_fv_table;
+eventsList     = [eventsList event];
 
 % laser
-event.name   = 'laser_1';
-event.type   = 'semiDigital';
-event.chanId = 'Laser';
-event.evtFcn = @get_analog_events;
-eventsList   = [eventsList event];
+event.name     = 'laser_1';
+event.type     = 'semiDigital';
+event.chanId   = 'Laser';
+event.evtFcn   = @get_analog_events;
+event.tableFcn = @make_laser_table;
+eventsList     = [eventsList event];
 
 
 %get and match the trial numbers with the trial pins
 trialNumbers = match_trial_numbers(mouse,sess,rec,run);
+
+% for every event, look it up within its corresponding trial,
+% and make the table with all its properties
+for ie = 1:numel(eventsList);
+    event = eventsList(ie);
+    eventsTrials = events_lookup(event,trialNumbers,mouse,sess,rec,run);
+    table = event.tableFcn(eventsTrials,mouse,sess,rec,run);
+    
+end
 
 
 end
@@ -125,13 +137,8 @@ tn.table.trialEnd    = tEndPins;
 
 end
 
-function to=get_fv(mouse,sess,rec,irun)
-%gets the final valve time stamps
-%gets the trial number that corresponds to that opening
-%gets the odor parameters that correspond to that fv opening
-    to.name   = 'finalValve_1';
-    to.type   = 'digital';
-    to.chanId = 'FvPin';
+function to=make_fv_table(mouse,sess,rec,irun)
+
    
     % Now the easy part is done its time to work.
     % Two ways of doing this:
@@ -533,7 +540,7 @@ onEvents=[eventSample;eventAmp*int2volt];
 
 end
 
-function events_lookup(ev,tn,mouse,sess,rec,run)
+function eventsTrials = events_lookup(ev,tn,mouse,sess,rec,run)
 %easier way to lookup trial numbers for an event
 %  Go through the trial numbers that have a good trial pin
 %  get the closest event after that pin (whithin the pin on and off)
@@ -552,7 +559,7 @@ function events_lookup(ev,tn,mouse,sess,rec,run)
 events = get_analog_events(ev.chanId,mouse,sess,rec,run,'figures','noplot');
 % go through all the trial numbers that have a good trial pin and find the
 % events whithin that trial
-table = [];
+eventsTrials = cell(sum(~isnan(tn.table.trialPin)),2);
 for itp = find(~isnan(tn.table.trialPin))
     tPinStamps = [tn.table.trialStart(itp);tn.table.trialEnd(itp)];
     trialNumber = tn.table.trialNumber(itp);
@@ -564,8 +571,10 @@ for itp = find(~isnan(tn.table.trialPin))
     % (get the rows in the event table, then check them, then append them
     % to the table)
     evIdx = find((events(1,:)>=tPinStamps(1)) & (events(2,:) <= tPinStamps(2)));
-    ev
+    eventsTrials{itp,:} = {trialNumber, evIdx};
 end
+% this yelds a list of {trial number, index of event pins within % trial}
+% now check, lookup and fill tables of those events
 
 end
 
