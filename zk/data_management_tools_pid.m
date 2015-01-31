@@ -215,7 +215,7 @@ function trPid=pid_get(mouse,sess,rec)
         
         disp('reading all pid packets...')
         sample_on = zeros(1,preSize);
-        sn_unfiltered = zeros(1,preSize);
+        sn_unfiltered = nan(1,preSize);
         
         
      
@@ -905,6 +905,9 @@ function [ outstruct ] = pid_graph_all( inputstruct )
 
 outstruct = struct;
 
+%remove all the traces that have breaks
+noBreaks=arrayfun(@(x) isempty(x.breaks),inputstruct);
+inputstruct(~noBreaks)=[];
 outstruct.Trials = inputstruct;
 
 len = length(inputstruct);
@@ -921,7 +924,6 @@ for kt = 1:len
     outstruct.conc(end+1)  = inputstruct(kt).odorConc;
 
 end
-
 
 outstruct.concentrationlist = unique(outstruct.conc);
 outstruct.odorlist = unique(outstruct.od);
@@ -966,35 +968,51 @@ end
 for ko = 1:length(outstruct.odorlist)
     
     odorvar = genvarname(outstruct.odorlist{ko});
-
+    
     for kc = 1:length(outstruct.(odorvar))
         
-        sniffmat = [];        
-        
         ind = outstruct.(odorvar){kc};
-        
-        for kts = 1:length(ind)
+        if isempty(outstruct.(odorvar){kc})
+            continue
+        else
+            sniffmat = [];
             
-            sniffmat(:,kts) = outstruct.Trials(ind(kts)).sniff;
-        end
-        
             
-        
-        figure
-        lentrial = length(sniffmat);
-        x = linspace(1,lentrial,lentrial);
-        offset = mean(sniffmat([1:500],:));
-        
-        for offf = 1:length(offset)
-            sniffmat(:,offf) = sniffmat(:,offf) - offset(offf);
+            for kts = 1:length(ind)
+                %remove the traces that have lost packets
+                rawTrace = outstruct.Trials(ind(kts)).sniff;
+                if any(isnan(rawTrace))
+                    rawTrace = nan(size(rawTrace));
+                end
+                sniffmat(:,kts) = rawTrace;
+                
+            end
+            
+            
+            
+            figure
+            lentrial = length(sniffmat);
+            x = linspace(1,lentrial,lentrial);
+            offset = mean(sniffmat([1:500],:));
+            
+            for offf = 1:length(offset)
+                sniffmat(:,offf) = sniffmat(:,offf) - offset(offf);
+            end
+            
+            plot (x,sniffmat)
+            titlestr1 = sprintf(' %d concentration ',outstruct.concentrationlist(kc));
+            titlestr2 = [odorvar, titlestr1];
+            title(titlestr2)
+            
+            figure
+            surf(sniffmat,'LineStyle','none');
+            ylabel('mV')
+            xlabel('ms');
+            zlabel('Trial number');
+            title(titlestr2)
         end
-        
-        plot (x,sniffmat)
-        titlestr1 = sprintf(' %d concentration ',outstruct.concentrationlist(kc));
-        titlestr2 = [odorvar, titlestr1];
-        title(titlestr2)
     end
-
+    
 end
 end
 
@@ -1023,24 +1041,24 @@ end
 
 % This will do the little calculation of concentration corrections for you
 %   Note: assumes that i) only 2 vials compared, and ii) original flow rates were 100:900
-for io = 1:numel(pidAn.odors)
-    concRatio = pidAn.odors(io).maxPlot.conc(2)/pidAn.odors(io).maxPlot.conc(1);
-    amp = pidAn.odors(io).maxPlot.amp_snf1;
-    if concRatio<1
-        amp = [amp(:,2) amp(:,1)];
-        amp = [amp(2,:); amp(1,:)];
-        concRatio = pidAn.odors(io).maxPlot.conc(1)/pidAn.odors(io).maxPlot.conc(2);
-    end
-    ampRatio = (amp(1,1)*concRatio)/amp(2,2);
-    newAirFlow = round(900*ampRatio);
-    newN2Flow  = 1000-newAirFlow;
-    if abs(ampRatio-1)<0.2 && newN2Flow<100 && newN2Flow>10
-        fprintf('\n%s\n  (10*vial_low)/vial_high ratio around time of first sniff is %4.4f \n  Correct lower conc vial flows to %i:%i\n',strtrim(pidAn.odors(io).odor{1}),ampRatio,newN2Flow,newAirFlow)
-    else
-        newVialConc = pidAn.odors(io).maxPlot.vialConc(1)/ampRatio;
-        fprintf('\n%s\n  (10*vial_low)/vial_high ratio around time of first sniff is %4.4f \n  CHANGE LIQUID DILUTIONS!\n  Try new lower vial conc %4.4f (current is %4.4f)\n',strtrim(pidAn.odors(io).odor{1}),ampRatio,newVialConc,pidAn.odors(io).maxPlot.vialConc(1))
-    end
-end
+% for io = 1:numel(pidAn.odors)
+%     concRatio = pidAn.odors(io).maxPlot.conc(2)/pidAn.odors(io).maxPlot.conc(1);
+%     amp = pidAn.odors(io).maxPlot.amp_snf1;
+%     if concRatio<1
+%         amp = [amp(:,2) amp(:,1)];
+%         amp = [amp(2,:); amp(1,:)];
+%         concRatio = pidAn.odors(io).maxPlot.conc(1)/pidAn.odors(io).maxPlot.conc(2);
+%     end
+%     ampRatio = (amp(1,1)*concRatio)/amp(2,2);
+%     newAirFlow = round(900*ampRatio);
+%     newN2Flow  = 1000-newAirFlow;
+%     if abs(ampRatio-1)<0.2 && newN2Flow<100 && newN2Flow>10
+%         fprintf('\n%s\n  (10*vial_low)/vial_high ratio around time of first sniff is %4.4f \n  Correct lower conc vial flows to %i:%i\n',strtrim(pidAn.odors(io).odor{1}),ampRatio,newN2Flow,newAirFlow)
+%     else
+%         newVialConc = pidAn.odors(io).maxPlot.vialConc(1)/ampRatio;
+%         fprintf('\n%s\n  (10*vial_low)/vial_high ratio around time of first sniff is %4.4f \n  CHANGE LIQUID DILUTIONS!\n  Try new lower vial conc %4.4f (current is %4.4f)\n',strtrim(pidAn.odors(io).odor{1}),ampRatio,newVialConc,pidAn.odors(io).maxPlot.vialConc(1))
+%     end
+% end
 end
 
 
