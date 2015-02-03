@@ -8,8 +8,11 @@ if ~strcmp(strtrim(computerName),'flipper')
     includePath=fullfile(fileparts(pwd),'current','include');
     addpath(includePath);
 end
+    ds.make_tables         = @make_tables;
     ds.match_trial_numbers = @match_trial_numbers; %get trial numbers and match them with trial pin events
+    ds.make_fv_table       = @make_fv_table; % make table for final valve events
     ds.get_analog_events   = @get_analog_events; %get occurrences of an analog event 
+    ds.events_lookup       = @events_lookup; %lookup a list of events in the corresponding trial in the voyeur table
     ds.get_trial_numbers   = @get_trial_numbers; % get the trial numbers
     ds.get_data_stream     = @get_data_stream; %get stream of data from binary file
     ds.get_voyeur_table    = @get_voyeur_table; %get a voyeur table (or fields of it)
@@ -135,18 +138,6 @@ tn.table.trialStart  = tStartPins;
 tn.table.trialEnd    = tEndPins;
 %tn.meta = %some metadata that will be added when save in h5 format
 
-end
-
-function to=make_fv_table(event,evTrials,mouse,sess,rec,irun)
- %receives eventsTrials (cell array of {trialNumber, eventIndex}
- %with trial Numbers matching timestamps.
- %make a table with all the data on every event.
- %the evTrials are checked to match an event.
- %just fill the table with the data on that fv open event.
- % go through the trilas, check the trial has an open valve, and fill the
- % table.
-    
-    
 end
 
 function get_laser(mouse,sess,rec,irun)
@@ -536,7 +527,7 @@ onEvents=[eventSample;eventAmp*int2volt];
 
 end
 
-function eventsTrials = events_lookup(ev,tn,mouse,sess,rec,run)
+function eventsTrials = events_lookup(ev,tn,mouse,sess,rec,irun)
 %easier way to lookup trial numbers for an event
 %  Go through the trial numbers that have a good trial pin
 %  get the closest event after that pin (whithin the pin on and off)
@@ -552,10 +543,10 @@ function eventsTrials = events_lookup(ev,tn,mouse,sess,rec,run)
 % event.evtFcn = @get_analog_events;
 % get the events
 
-events = get_analog_events(ev.chanId,mouse,sess,rec,run,'figures','noplot');
+events = get_analog_events(ev.chanId,mouse,sess,rec,irun,'figures','noplot');
 % go through all the trial numbers that have a good trial pin and find the
 % events whithin that trial
-eventsTrials = cell(sum(~isnan(tn.table.trialPin)),2);
+eventsTrials = [];
 for itp = find(~isnan(tn.table.trialPin))
     tPinStamps = [tn.table.trialStart(itp);tn.table.trialEnd(itp)];
     trialNumber = tn.table.trialNumber(itp);
@@ -567,12 +558,45 @@ for itp = find(~isnan(tn.table.trialPin))
     % (get the rows in the event table, then check them, then append them
     % to the table)
     evIdx = find((events(1,:)>=tPinStamps(1)) & (events(2,:) <= tPinStamps(2)));
-    eventsTrials{itp,:} = {trialNumber, evIdx};
+    if ~isempty(evIdx)
+        eventsTrials = [eventsTrials; {trialNumber, evIdx}];
+    end
 end
 % this yelds a list of {trial number, index of event pins within % trial}
 % now send the events and the eventsTrials to the tableFcn that corresponds
 % to that event and make the table
-table = event.tableFcn(event,eventsTrials,mouse,sess,rec,run);
+table = ev.tableFcn(ev,events, eventsTrials,mouse,sess,rec,irun);
+
+end
+
+function to=make_fv_table(ev,events,evTrials,mouse,sess,rec,irun)
+ %receives eventsTrials (cell array of {trialNumber, eventIndex}
+ %with trial Numbers matching timestamps.
+ %make a table with all the data on every event.
+ %the evTrials are checked to match an event.
+ %just fill the table with the data on that fv open event.
+ % go through the trials, check the trial has an open valve, and fill the
+ % table.
+ [rawTrials, rawTable] = read_voyeur_fields(ev.name, mouse,sess,rec,irun);
+ %filter only the trials that come with clean corresponding events from
+ %evTrials
+ trials = [];
+ 
+ for iEv = 1:length(evTrials)
+     thisTrial    = rawTrials([rawTrials.trialNumber]==evTrials{iEv,1});
+     thisEventIdx = evTrials{iEv,2};
+     %check that there is only one event (one single final valve opening)
+     if numel(thisEventIdx)>1
+         warning('More than one opening final valve event in trial %d',thisTrial.trialNumber)
+         continue
+     end
+     %if its ok, add the data of the event to the trial fields
+     thisTrial.on  = events(1,thisEventIdx);
+     thisTrial.off = events(2,thisEventIdx);
+     trials = [trials thisTrial];
+ end
+
+ to.trials = trials;
 
 end
 
@@ -691,6 +715,7 @@ for kf = 1:numel(ff)
     end
 end
 
+
 end
 
 function stream = get_data_stream(chanName, mouse,sess,rec,irun,varargin)
@@ -793,15 +818,17 @@ table=h52m_table(table);
 
 %translate the names of the fields into the program names
 for jf=1:length(fieldsList)
-    oldField = fieldsList{jf,2}
-    newField = fieldsList{jf,1}
-    [trials.(newField)] = trials.(oldField);
-    [table.(newField)]  = table.(oldField);
-    trials = rmfield(trials, oldField);
-    table  = rmfield(table, oldField);
+    oldField = fieldsList{jf,2};
+    newField = fieldsList{jf,1};
+    if strcmp(oldField,newField)
+        continue
+    else
+        [trials.(newField)] = trials.(oldField);
+        [table.(newField)]  = table.(oldField);
+        trials = rmfield(trials, oldField);
+        table  = rmfield(table, oldField);
+    end
 end
-
-       
 
 end
 
