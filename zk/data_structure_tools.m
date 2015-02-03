@@ -67,7 +67,7 @@ trialNumbers = match_trial_numbers(mouse,sess,rec,run);
 for ie = 1:numel(eventsList);
     event = eventsList(ie);
     eventsTrials = events_lookup(event,trialNumbers,mouse,sess,rec,run);
-    table = event.tableFcn(eventsTrials,mouse,sess,rec,run);
+    
     
 end
 
@@ -137,18 +137,14 @@ tn.table.trialEnd    = tEndPins;
 
 end
 
-function to=make_fv_table(mouse,sess,rec,irun)
-
-   
-    % Now the easy part is done its time to work.
-    % Two ways of doing this:
-    %  Get the timestamps of the clean events of the channel
-    %  Look them up after their closest trialstart pin
-    %  Get the trial number that corresponds to that pin
-    % Way2
-    %  Go through the trial numbers that have a good trial pin
-    %  get the closest event after that pin (whithin the pin on and off)
-    %  lookup that pin in the trialnumber table and get the trial number
+function to=make_fv_table(event,evTrials,mouse,sess,rec,irun)
+ %receives eventsTrials (cell array of {trialNumber, eventIndex}
+ %with trial Numbers matching timestamps.
+ %make a table with all the data on every event.
+ %the evTrials are checked to match an event.
+ %just fill the table with the data on that fv open event.
+ % go through the trilas, check the trial has an open valve, and fill the
+ % table.
     
     
 end
@@ -574,7 +570,9 @@ for itp = find(~isnan(tn.table.trialPin))
     eventsTrials{itp,:} = {trialNumber, evIdx};
 end
 % this yelds a list of {trial number, index of event pins within % trial}
-% now check, lookup and fill tables of those events
+% now send the events and the eventsTrials to the tableFcn that corresponds
+% to that event and make the table
+table = event.tableFcn(event,eventsTrials,mouse,sess,rec,run);
 
 end
 
