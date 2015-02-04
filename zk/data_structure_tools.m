@@ -8,11 +8,10 @@ if ~strcmp(strtrim(computerName),'flipper')
     includePath=fullfile(fileparts(pwd),'current','include');
     addpath(includePath);
 end
-    ds.events_lookup       = @events_lookup; %lookup a list of events in the corresponding trial in the voyeur table
     ds.match_trial_numbers = @match_trial_numbers; %get trial numbers and match them with trial pin events
     ds.make_fv_table       = @make_fv_table; % make table for final valve events
     ds.make_laser_table    = @make_laser_table; % make table for final valve events
-    ds.make_tables         = @make_tables;
+    
     ds.get_analog_events   = @get_analog_events; %get occurrences of an analog event 
     ds.get_trial_numbers   = @get_trial_numbers; % get the trial numbers
     ds.get_data_stream     = @get_data_stream; %get stream of data from binary file
@@ -23,15 +22,19 @@ end
     ds.check_list          = @check_list; %checks a list for repeated or skipped positions
     
     ds.h52m_table          = @h52m_table; %reformats an h5 table into matlab data types
+    
+    ds.events_lookup       = @events_lookup; %lookup a list of events in the corresponding trial in the voyeur table
+    ds.make_tables         = @make_tables;
+
 end
 
-function evt = make_tables(mouse,sess,rec,run)
+function ev = make_tables(mouse,sess,rec,run)
 %make all the event tables for a run
 %these tables will be then gathered and put together in a table for each
 %rec
 
 %where words is a structure containing the bytes.
-event = struct('event',[],'type',[],'chanId',[],'evtFcn',[]);
+ev = struct('event',[],'type',[],'chanId',[],'evtFcn',[]);
 inputPar = struct('par',[],'default',[],'validation',[]);
 
 %%% DEFINITIONS OF EVENTS AND PARAMETERS
@@ -39,28 +42,28 @@ inputPar = struct('par',[],'default',[],'validation',[]);
 eventsList = [];
 
 % trial pin
-event.name     = 'trialPin';
-event.type     = 'digital';
-event.chanId   = 'trPin';
-event.evtFcn   = @get_analog_events;
-event.tableFcn = @check_trial_pin;
-%eventsList     = [eventsList event];
+ev.name     = 'trialPin';
+ev.type     = 'digital';
+ev.chanId   = 'trPin';
+ev.evtFcn   = @get_analog_events;
+ev.tableFcn = @check_trial_pin;
+%eventsList    = [eventsList event];
 
 % final valve pin
-event.name     = 'finalValve_1';
-event.type     = 'digital';
-event.chanId   = 'FVPin';
-event.evtFcn   = @get_analog_events;
-event.tableFcn = @make_fv_table;
-eventsList     = [eventsList event];
+ev.name     = 'finalValve_1';
+ev.type     = 'digital';
+ev.chanId   = 'FVPin';
+ev.evtFcn   = @get_analog_events;
+ev.tableFcn = @make_fv_table;
+eventsList     = [eventsList ev];
 
 % laser
-event.name     = 'laser_1';
-event.type     = 'semiDigital';
-event.chanId   = 'Laser';
-event.evtFcn   = @get_analog_events;
-event.tableFcn = @make_laser_table;
-eventsList     = [eventsList event];
+ev.name     = 'laser_1';
+ev.type     = 'semiDigital';
+ev.chanId   = 'Laser';
+ev.evtFcn   = @get_analog_events;
+ev.tableFcn = @make_laser_table;
+eventsList     = [eventsList ev];
 
 
 %get and match the trial numbers with the trial pins
@@ -68,9 +71,10 @@ trialNumbers = match_trial_numbers(mouse,sess,rec,run);
 
 % for every event, look it up within its corresponding trial,
 % and make the table with all its properties
+eventsList=eventsList(2);
 for ie = 1:numel(eventsList);
-    event = eventsList(ie);
-    eventsTrials = events_lookup(event,trialNumbers,mouse,sess,rec,run);
+    ev = eventsList(ie);
+    eventsTrials = events_lookup(ev,trialNumbers,mouse,sess,rec,run);
 end
 
 
@@ -536,11 +540,12 @@ function table = events_lookup(ev,tn,mouse,sess,rec,irun)
 % ev.chanId : id of the channel where the event is
 % ev.evtFcn : pointer to the function used to extract timestamps and values
 % Example:
-% event.name   = 'finalValve_1';
-% event.type   = 'digital';
-% event.chanId = 'FVPin';
-% event.evtFcn = @get_analog_events;
+% ev.name   = 'finalValve_1';
+% ev.type   = 'digital';
+% ev.chanId = 'FVPin';
+% ev.evtFcn = @get_analog_events;
 % get the events
+% tn is a matched_trial_numbers structure
 
 events = get_analog_events(ev.chanId,mouse,sess,rec,irun,'figures','noplot');
 % go through all the trial numbers that have a good trial pin and find the
@@ -622,7 +627,7 @@ function to=make_laser_table(ev,events,evTrials,mouse,sess,rec,irun)
      %if its ok, add the data of the event to the trial fields
      thisTrial.on  = events(1,thisEventIdx);
      thisTrial.off = events(2,thisEventIdx);
-     thisTrial.v   = events(2,thisEventIdx);
+     thisTrial.v   = events(3,thisEventIdx);
      trials = [trials thisTrial];
  end
  to.trials = trials;
@@ -722,6 +727,7 @@ if ~isempty(inPar.Results.selectedFields)
     checked = cellfun(@(x) any(strcmp(x,ff)),keepFields);
     if any(~checked)
         warning('Some fields requested not found in the voyeur table');
+        disp(keepFields(~checked));
     end
     %remove all the fields that do not appear in keepFields
     rmf = ~cellfun(@(x) sum(strcmp(x,keepFields)),ff);
@@ -834,7 +840,7 @@ function [trials, table] = read_voyeur_fields(evName,mouse,sess,rec,run)
 % event
 %get the list of parameters saved and how their names translate to voyeur
 %table
-vd=voyeur_definitions(evName,mouse,sess,rec,run);
+vd=voyeur_definitions(evName);
 %vd.trialFields %for the trial
 %vd.evtFields %for the event
 
@@ -860,7 +866,7 @@ end
 
 end
 
-function vd = voyeur_definitions(evName,mouse,sess,rec,run)
+function vd = voyeur_definitions(evName)
 %it uses default voyeur_definitions for name translations, unless there is
 %a voyeur_definitions function in the mouse folder or addressed in the 
 %here it checks if its indicated that it has to use other definitions
@@ -930,8 +936,8 @@ end
             {['laserAmplitude_' evNum],['amplitude_' evNum]}
             {['pulseOnDur_' evNum],['pulseOnDur_' evNum]}
             {['pulseOffDur_' evNum],['pulseOffDur_' evNum]}
-            {['pulseOnsetDelay_' evNum],['pulseOnDelay_' evNum]}
-            {['trainLength_' evNum],['trainLength_' evNum]}
+            {['pulseOnsetDelay_' evNum],['pulseOnsetDelay_' evNum]}
+            {['trainLength_' evNum],['trainlength_' evNum]}
             {'laserMultiSniff', 'laser_multi_sniff'}
             {'laserTrigExh', 'laser_on_exh'}
             {'laserOnTime', 'laserontime'}
