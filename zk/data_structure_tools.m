@@ -8,11 +8,12 @@ if ~strcmp(strtrim(computerName),'flipper')
     includePath=fullfile(fileparts(pwd),'current','include');
     addpath(includePath);
 end
-    ds.make_tables         = @make_tables;
+    ds.events_lookup       = @events_lookup; %lookup a list of events in the corresponding trial in the voyeur table
     ds.match_trial_numbers = @match_trial_numbers; %get trial numbers and match them with trial pin events
     ds.make_fv_table       = @make_fv_table; % make table for final valve events
+    ds.make_laser_table    = @make_laser_table; % make table for final valve events
+    ds.make_tables         = @make_tables;
     ds.get_analog_events   = @get_analog_events; %get occurrences of an analog event 
-    ds.events_lookup       = @events_lookup; %lookup a list of events in the corresponding trial in the voyeur table
     ds.get_trial_numbers   = @get_trial_numbers; % get the trial numbers
     ds.get_data_stream     = @get_data_stream; %get stream of data from binary file
     ds.get_voyeur_table    = @get_voyeur_table; %get a voyeur table (or fields of it)
@@ -70,8 +71,6 @@ trialNumbers = match_trial_numbers(mouse,sess,rec,run);
 for ie = 1:numel(eventsList);
     event = eventsList(ie);
     eventsTrials = events_lookup(event,trialNumbers,mouse,sess,rec,run);
-    
-    
 end
 
 
@@ -527,7 +526,7 @@ onEvents=[eventSample;eventAmp*int2volt];
 
 end
 
-function eventsTrials = events_lookup(ev,tn,mouse,sess,rec,irun)
+function table = events_lookup(ev,tn,mouse,sess,rec,irun)
 %easier way to lookup trial numbers for an event
 %  Go through the trial numbers that have a good trial pin
 %  get the closest event after that pin (whithin the pin on and off)
@@ -566,6 +565,7 @@ end
 % now send the events and the eventsTrials to the tableFcn that corresponds
 % to that event and make the table
 table = ev.tableFcn(ev,events, eventsTrials,mouse,sess,rec,irun);
+% now do some table to h5 something
 
 end
 
@@ -595,9 +595,37 @@ function to=make_fv_table(ev,events,evTrials,mouse,sess,rec,irun)
      thisTrial.off = events(2,thisEventIdx);
      trials = [trials thisTrial];
  end
-
  to.trials = trials;
+end
 
+function to=make_laser_table(ev,events,evTrials,mouse,sess,rec,irun)
+ %receives eventsTrials (cell array of {trialNumber, eventIndex}
+ %with trial Numbers matching timestamps.
+ %make a table with all the data on every event.
+ %the evTrials are checked to match an event.
+ %just fill the table with the data on that fv open event.
+ % go through the trials, check the trial has an open valve, and fill the
+ % table.
+ [rawTrials, rawTable] = read_voyeur_fields(ev.name, mouse,sess,rec,irun);
+ %filter only the trials that come with clean corresponding events from
+ %evTrials
+ trials = [];
+ 
+ for iEv = 1:length(evTrials)
+     thisTrial    = rawTrials([rawTrials.trialNumber]==evTrials{iEv,1});
+     thisEventIdx = evTrials{iEv,2};
+     %check that there is only one event (one single laser pulse)
+     if numel(thisEventIdx)>1
+         warning('More than one laser event in trial %d',thisTrial.trialNumber)
+         continue
+     end
+     %if its ok, add the data of the event to the trial fields
+     thisTrial.on  = events(1,thisEventIdx);
+     thisTrial.off = events(2,thisEventIdx);
+     thisTrial.v   = events(2,thisEventIdx);
+     trials = [trials thisTrial];
+ end
+ to.trials = trials;
 end
 
 function [trialNumbers]=get_trial_numbers(mouse, sess, rec,irun,varargin)
