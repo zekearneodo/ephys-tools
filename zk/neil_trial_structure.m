@@ -11,7 +11,7 @@ rsmSniff = load(fn.rsm_data,'Sniff');
 %pick only the odor trials
 trial(strcmpi({'none'},{trial.odorName}))=[];
 trial(strcmpi({'empty'},{trial.odorName}))=[];
-t1 = 0;
+t1 = -200;
 t2 = 2500;
 
 trials = [];
@@ -45,7 +45,8 @@ for it=1:numel(trial)
     sn = zeros(size(tr.stim));
     try
     if ~any(isnan(ttr.sniffParabZeroTimes))
-        spZeros = round((ttr.sniffParabZeroTimes(1:2,:)));
+        spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)));
+        spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)));
         tr.sniffZeroTimes = ttr.sniffZeroTimes + t1;
         sz = spZeros + t1*ones(size(spZeros));
         firstSnif = find(sz>0,1,'first');

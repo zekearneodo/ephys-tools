@@ -143,14 +143,6 @@ tn.table.trialEnd    = tEndPins;
 
 end
 
-function get_laser(mouse,sess,rec,irun)
-%gets laser time stamps and v value
-%gets the trial number that corresponds to that laser
-%gets the laser parameter that correspond to that laser event
-
-
-end
-
 function [allEvents, aev_m] = make_events_tables(mouse, sess, rec,irun,varargin)
 %get all the events on a run
 %events are extracted from the corresponding channel of a binary file
@@ -482,11 +474,15 @@ if strcmpi(inPar.Results.aqSystem,'JFRC')
     fprintf('done.\n');
     
     %it is easier to work with integers, so get the Voltage values to integers
-    volt2int=32768/(recInfo.rangeMax*inPar.Results.chanGain); % in V
-    int2volt=1./volt2int;
-    
+    chanGain = 1;
+    if isfield(eventChan,'gain') && ~isempty(eventChan.gain)
+        chanGain = eventChan.gain;
+    end
+    volt2int=32768/(recInfo.rangeMax); % in V
+    int2Volt = 1./volt2int;
+
     %the minimum detectable peak is 0.5v
-    threshold=ceil(inPar.Results.threshold*volt2int);
+    threshold=ceil(inPar.Results.threshold*volt2int);    
 end
 
 eventOnOff=zeros(size(eventData));
@@ -509,7 +505,7 @@ else
 end
 
 %get the mean values of every ON segment
-eventAmp   =arrayfun(@(x,y) mean(eventData(x+1:y-1)),eventSample(1,:),eventSample(2,:));
+eventAmp   =arrayfun(@(x,y) mean(eventData(x+1:y-1))*int2Volt/chanGain,eventSample(1,:),eventSample(2,:));
 
 if figsOn
     figure
@@ -520,7 +516,7 @@ if figsOn
     plot(eventOffSample,eventAmp,'go')
 end
 
-onEvents=[eventSample;eventAmp*int2volt];
+onEvents=[eventSample;eventAmp];
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     function Y = read_analog_channel(fid, ich, nch)
@@ -809,7 +805,7 @@ end
 function [recInfo, runInfo] = get_info(mouse,sess,rec,irun)
 %get the info for the rec and for the run
 fn = file_names(mouse, sess,rec);
-q = load(fn.sess_info);
+q = load(fn.ss_sess_info);
 recInfo = q.info.rec(strcmpi(rec,{q.info.rec.name}));
 runInfo = recInfo.run([recInfo.run.num]==irun);
 end
