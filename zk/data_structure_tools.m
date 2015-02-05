@@ -611,6 +611,7 @@ function to=make_laser_table(ev,events,evTrials,mouse,sess,rec,irun)
  %filter only the trials that come with clean corresponding events from
  %evTrials
  trials = [];
+ tolerance = 0.15;
  
  for iEv = 1:length(evTrials)
      thisTrial    = rawTrials([rawTrials.trialNumber]==evTrials{iEv,1});
@@ -625,6 +626,16 @@ function to=make_laser_table(ev,events,evTrials,mouse,sess,rec,irun)
      thisTrial.off = events(2,thisEventIdx);
      thisTrial.v   = events(3,thisEventIdx);
      trials = [trials thisTrial];
+ end
+ % make a quick check of consistency.
+ [recInfo, ~] = get_info(mouse,sess,rec,irun);
+ if ~isfield(recInfo.chan,'gain')
+     warning('Skipping laser amplitude consistency checks for event %s, channel %s',ev.name,ev.chanId);
+ else
+    inconsistent = ([trials.laserAmplitude_1]-[trials.v]*1000)>[trials.laserAmplitude_1]*tolerance;
+    if sum(inconsistent)
+        warning('Laser amplitude consistency checks gave %d fails for event %s, channel %s',sum(inconsistent),ev.name,ev.chanId);
+    end
  end
  to.trials = trials;
 end
