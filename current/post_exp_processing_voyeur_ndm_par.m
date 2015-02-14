@@ -64,11 +64,11 @@ if nargin>2 && ~isempty(stat) && ~strcmp(stat,'local')
 end
 
 read_info(mouse, sess);
-ss_prep(mouse, sess);
+%ss_prep(mouse, sess);
 %klusta_par_make(mouse,sess);
 %xml_make(mouse,sess); % now ss_prep decides wether to make xml fle or prm
 %file
-resampling(mouse, sess)
+%resampling(mouse, sess)
 %trial_prep(mouse, sess)
 end
 

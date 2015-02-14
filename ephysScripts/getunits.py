@@ -16,9 +16,11 @@ Todo list:
 '''
 
 import sys, getopt
+import gdata.spreadsheet.service as gss
+import gdata.spreadsheet
 import string
 from unitToolsv2 import Mouse
-import gspread
+import spreadsheets
 import scipy.io
 
 
@@ -69,10 +71,10 @@ def main(argv):
         sys.exit(2)
     if action is 'get':
         print 'getting the units for mouse ' + str(mouse) 
-        cl=gspread.Client(auth=('rinberglab','time2Smell'))
-        sortingUrl='https://docs.google.com/spreadsheet/ccc?key=0AipRPkAmqtAKdG9Hc05WYkh5LV9sUEEtaG50a1R6WHc&usp=drive_web#gid=0'
-        cl.login()
-        sortingSheet=cl.open_by_url(sortingUrl)
+        gd_client=gss.SpreadsheetsService()
+        gd_client.email='rinberglab@gmail.com'
+        gd_client.password='time2Smell'
+        gd_client.ProgrammaticLogin()
 
         unitProps={
 
@@ -84,7 +86,7 @@ def main(argv):
             'sessCell'        : (int,0,'cell')
         }
 
-        theMouse=Mouse(mouse,sortingSheet,2,unitProps=unitProps)
+        theMouse=Mouse(mouse, gd_client, 2, unitProps=unitProps)
         theMouse.get_sessions()
         print "done getting units"
     return

@@ -25,7 +25,7 @@ function [raster] = raster_neil(mouse,sess,rec,unitNumber)
     %get that trial structure and go trial by trial adding rows to the big
     %raster
     t1 = -200;
-    t2 = 400;
+    t2 = 2500;
     
     nt=numel(trial);
     odors   = {trial.odorName};
