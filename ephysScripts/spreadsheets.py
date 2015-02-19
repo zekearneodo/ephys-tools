@@ -5,10 +5,12 @@ Class for handling google data spreadsheets.
 '''
 
 import gdata.spreadsheet.service as gss
+import gdata
+
 
 class Spreadsheets:
     # a collection of spreadsheets
-    def __init__(self,client):
+    def __init__(self, client):
         # The client is given and is logged in
         self.client = client
         self.spreadsheet_key = ''
@@ -16,8 +18,8 @@ class Spreadsheets:
         self.cells_feed = ''
         pass
 
-    def list_spreadsheets(self,verbose = False):
-        #gets the feed of worksheets and prints the list
+    def list_spreadsheets(self, verbose=False):
+        # gets the feed of worksheets and prints the list
         """
         returns a dictionary containing keys for titles and id of the spreadshet as value:
         (it helps when you want to load a particular sheet)
@@ -25,17 +27,17 @@ class Spreadsheets:
         :param verbose: if True, it will print the list of titles -> id.
                 default is False
         """
-        feed=self.client.GetSpreadsheetsFeed()
-        sheets={}
-        for i,entry in enumerate(feed.entry):
-            sheets[entry.title.text] = entry.id.text.rsplit('/',1)[1]
+        feed = self.client.GetSpreadsheetsFeed()
+        sheets = {}
+        for i, entry in enumerate(feed.entry):
+            sheets[entry.title.text] = entry.id.text.rsplit('/', 1)[1]
             if verbose:
-                print '{0:40} -> {1}'.format(entry.title.text,sheets[entry.title.text])
+                print '{0:40} -> {1}'.format(entry.title.text, sheets[entry.title.text])
 
         return sheets
 
-    def _list_worksheets(self,verbose = False):
-        #gets the feed of worksheets and prints the list
+    def _list_worksheets(self, verbose=False):
+        # gets the feed of worksheets and prints the list
         """
         returns a dictionary containing keys for titles and id of the spreadshet as value:
         (it helps when you want to load a particular sheet)
@@ -48,14 +50,14 @@ class Spreadsheets:
             return
         else:
             spreadsheet = self.client.GetWorksheetsFeed(self.spreadsheet_key)
-            sheets={}
-            for i,entry in enumerate(spreadsheet.entry):
-                sheets[entry.title.text] = entry.id.text.rsplit('/',1)[1]
+            sheets = {}
+            for i, entry in enumerate(spreadsheet.entry):
+                sheets[entry.title.text] = entry.id.text.rsplit('/', 1)[1]
                 if verbose:
-                    print '{0:40} -> {1}'.format(entry.title.text,sheets[entry.title.text])
+                    print '{0:40} -> {1}'.format(entry.title.text, sheets[entry.title.text])
             return sheets
 
-    def get_spreadsheet(self,title):
+    def get_spreadsheet(self, title):
         """
         returns the sheet with the entered title
         sets it as the current spreadsheet in self.spreadsheet_key
@@ -69,9 +71,9 @@ class Spreadsheets:
         except:
             print 'Spreadsheet {0} not found'.format(title)
             sheet_id = ''
-            sheet    = {}
+            sheet = {}
 
-    def get_worksheet(self,title=''):
+    def get_worksheet(self, title=''):
         """
         gets a worksheet (a cells_feed) from the spreadsheet that is pointed at in self._spreadsheet_key
         sets it
@@ -86,14 +88,14 @@ class Spreadsheets:
             self.worksheet_id = sheets[title]
 
         try:
-            worksheet = self.client.GetCellsFeed(self.spreadsheet_key,self.worksheet_id)
+            worksheet = self.client.GetCellsFeed(self.spreadsheet_key, self.worksheet_id)
             self.cells_feed = worksheet
             return worksheet
         except:
             print 'Worksheet {0} not found'.format(self.worksheet_id)
             return None
 
-    def get_col_values(self,col,row_range=[]):
+    def get_col_values(self, col, row_range=[]):
 
         """
         Get a list with the text values of a column in a worksheet
@@ -110,21 +112,21 @@ class Spreadsheets:
             return None
 
         if not row_range:
-            row_range=[1,'end']
+            row_range = [1, 'end']
 
-        #make a query for the column
+        # make a query for the column
         if row_range[1] is 'end':
             row_range[1] = int(self.cells_feed.row_count.text)
 
         query = gss.CellQuery()
-        query['min-col']= str(col)
-        query['max-col']= str(col)
-        query['min-row']= str(row_range[0])
-        query['max-row']= str(row_range[1])
-        query['return-empty']='true'
-        col_feed = self.client.GetCellsFeed(self.spreadsheet_key,self.worksheet_id,query=query)
+        query['min-col'] = str(col)
+        query['max-col'] = str(col)
+        query['min-row'] = str(row_range[0])
+        query['max-row'] = str(row_range[1])
+        query['return-empty'] = 'true'
+        col_feed = self.client.GetCellsFeed(self.spreadsheet_key, self.worksheet_id, query=query)
         col_content = []
-        for j,row in enumerate(col_feed.entry):
+        for j, row in enumerate(col_feed.entry):
             content = row.content.text
             # if content is None:
             #     content = ''
@@ -132,7 +134,7 @@ class Spreadsheets:
 
         return col_content
 
-    def get_row_values(self,row,col_range=[]):
+    def get_row_values(self, row, col_range=[]):
 
         """
         Get a list with the text values of a column in a worksheet
@@ -149,22 +151,22 @@ class Spreadsheets:
             return None
 
         if not col_range:
-            col_range=[1,'end']
+            col_range = [1, 'end']
 
-        #make a query for the column
+        # make a query for the column
         if col_range[1] is 'end':
             col_range[1] = int(self.cells_feed.col_count.text)
 
         #make a query for the column
         query = gss.CellQuery()
-        query['min-row']= str(row)
-        query['max-row']= str(row)
-        query['min-col']= str(col_range[0])
-        query['max-col']= str(col_range[1])
-        query['return-empty']='true'
-        row_feed = self.client.GetCellsFeed(self.spreadsheet_key,self.worksheet_id,query=query)
+        query['min-row'] = str(row)
+        query['max-row'] = str(row)
+        query['min-col'] = str(col_range[0])
+        query['max-col'] = str(col_range[1])
+        query['return-empty'] = 'true'
+        row_feed = self.client.GetCellsFeed(self.spreadsheet_key, self.worksheet_id, query=query)
         row_content = []
-        for j,row in enumerate(row_feed.entry):
+        for j, row in enumerate(row_feed.entry):
             content = row.content.text
             # if content is None:
             #     content = ''
@@ -172,7 +174,7 @@ class Spreadsheets:
 
         return row_content
 
-    def get_cell_value(self,row,col):
+    def get_cell_value(self, row, col):
         """
         make a query for the content of a cell
         :param row:
@@ -183,9 +185,9 @@ class Spreadsheets:
             print "No cells feed loaded"
             return None
 
-        #make a query for the cell
-        cell_address='R{0}C{1}'.format(row,col)
-        cell_feed = self.client.GetCellsFeed(self.spreadsheet_key,self.worksheet_id,cell=cell_address)
+        # make a query for the cell
+        cell_address = 'R{0}C{1}'.format(row, col)
+        cell_feed = self.client.GetCellsFeed(self.spreadsheet_key, self.worksheet_id, cell=cell_address)
         content = cell_feed.content.text
         # if content is None:
         #     content = ''
@@ -198,3 +200,18 @@ class Spreadsheets:
             return None
 
         return [int(self.cells_feed.row_count.text), int(self.cells_feed.col_count.text)]
+
+    def set_cell_value(self, row, col, value):
+        if not self.spreadsheet_key or not self.worksheet_id:
+            print "No spreadsheet or worksheet specified"
+            return None
+
+        entry = self.client.UpdateCell(row=row, col=col, inputValue=value,
+                                          key=self.spreadsheet_key, wksht_id=self.worksheet_id)
+        if isinstance(entry, gdata.spreadsheet.SpreadsheetsCell):
+            return 0
+        else:
+            print "Error writing to cell; cell not written"
+            return 1
+
+

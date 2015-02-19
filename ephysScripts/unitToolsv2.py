@@ -21,7 +21,7 @@ import spreadsheets
 
 class Unit:
 
-    def __init__(self,mouse,sess,rec,cellId,**kwargs):
+    def __init__(self, mouse, sess, rec, cellId = '', **kwargs):
         
         if type(mouse) is int:
             self.mouse=str(mouse).zfill(4)
@@ -82,9 +82,8 @@ class Unit:
             makedirs(folder)
         full_file_name=path.join(folder,self.Id+'.mat')
         io.savemat(full_file_name,unit)
-
         return
-        
+
 class Mouse:
 
     def __init__(self, mouse, client, labelsRow=2, **kwargs):
@@ -115,17 +114,23 @@ class Mouse:
         # If they are not entered, append the key and an empty dictionary.
         # keys to append to the unit
 
-        extraKeys=['unitProps']
+        extraKeys=['unitProps', 'unit_set']
 
         for extraKey in extraKeys:
             entered = [x for x in kwargs.items() if extraKey is x[0]]
             print 'entered = '
             print entered[0][1]
             if any(entered):
-                setattr(self,extraKey,entered[0][1])
+                setattr(self, extraKey, entered[0][1])
             else:
-                setattr(self,extraKey,[])
+                setattr(self, extraKey,[])
 
+        if hasattr(self,'unit_set'):
+            # fill the column numbers for all the properties to set in the units
+            for key in self.unit_set.keys():
+                col_name   = self.unit_set[key][2]
+                col_number =  self.get_label_col(col_name)
+                self.unit_set[key] = self.unit_set[key][:3]+(col_number,)
         return
 
 
@@ -208,7 +213,7 @@ class Mouse:
         
         return recs
     
-    def get_units(self,**kwargs):
+    def get_units(self, **kwargs):
         #gets the units for a sess, rec
         rec    = kwargs['rec']
         sess   = kwargs['sess']
@@ -244,30 +249,45 @@ class Mouse:
         for icell in range(len(colUnits)):
             unitListString=colUnits[icell]
             if unitListString is not None:
-                nUnit+=1
-                cluList=[int(x) for x in unitListString.split(',')]
-                cellId=str(nUnit).zfill(2)
-                #make the unit with an empty unitProps
-                tempUnit=Unit(self.mouse,sess['sess'],rec['rec'],cellId,unitProps=unitProps)
 
-                #fill it up with the properties from the spreadsheet
+                #get the properties of the cell from the spreadsheet
                 # get the cell (row,column) and its value (it's a string).
-                # if it is not empty, conver it to the format
+                # if it is not empty, convert it to the format specified in unitprops[propKey][0]
                 for propKey, propElem in unitProps.items():
                     readVal  = self.workSheet.get_cell_value(icell+row,propElem[3])
                     propType = propElem[0]
                     propVal  = propType(readVal) if type(readVal) is not NoneType and len(readVal)>0 else propElem[1]
                     unitProps[propKey]=unitProps[propKey][:1] + tuple([propVal]) + unitProps[propKey][2:]
 
-                tempUnit.fill_meta(cluList, unitProps)
-                units.append(tempUnit)
-
-                #save the unit
-                tempUnit.save(self.baseFolder)
+                if 'sessCell' in unitProps.keys() and unitProps['sessCell'][1].isdigit():
+                    #make the unit
+                    nUnit+=1
+                    cluList=[int(x) for x in unitListString.split(',')]
+                    cell_id = unitProps['sessCell'][1].zfill(3)
+                    tempUnit= Unit(self.mouse, sess['sess'], rec['rec'], cellId=cell_id, unitProps=unitProps)
+                    tempUnit.fill_meta(cluList, unitProps)
+                    units.append(tempUnit)
+                    #save the unit
+                    tempUnit.save(self.baseFolder)
+                    self.update_worksheet(tempUnit,icell+row)
         
         stdout.write("%s units\n"%(str(len(units))))
         return units
-            
+
+    def update_worksheet(self, unit, row_number):
+
+        if hasattr(self,'unit_set'):
+            # fill the column numbers for all the properties to set in the units
+            for key in self.unit_set.keys():
+                col_number = self.unit_set[key][3]
+                if hasattr(unit,key) and col_number is not None:
+                    value = getattr(unit,key)
+                    if value is not None:
+                        self.workSheet.set_cell_value(row_number,col_number,value)
+        else:
+            pass
+        return
+
     def get_label_col(self,label):
         #returns the number of column (counting from 1, as in gspread) where a label is found.
         #gets the list of labels (previously obtained for the mouse) and the label to search for.

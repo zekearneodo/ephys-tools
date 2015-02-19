@@ -77,17 +77,20 @@ def main(argv):
         gd_client.ProgrammaticLogin()
 
         unitProps={
-
             #'name': (type, columnHeader)
             'light'           : (int, 0, 'light'),
             'odor'            : (int, 0, 'odor'),
             'comment'         : (str, ' ' , 'comment'),
             'quality'         : (int, 0, 'quality'),
-            'sessCell'        : (int,0,'cell')
+            'sessCell'        : (str, '', 'cell')
         }
 
-        theMouse=Mouse(mouse, gd_client, 2, unitProps=unitProps)
-        theMouse.get_sessions()
+        unit_set = {
+            # name : (type, default, column_header,column_number)
+            'uId' : (str,'','cell_uid',None)
+        }
+        the_mouse = Mouse(mouse, gd_client, 2, unitProps=unitProps,unit_set=unit_set)
+        the_mouse.get_sessions()
         print "done getting units"
     return
 

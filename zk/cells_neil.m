@@ -37,7 +37,7 @@ for im=1:numel(mice)
         recList = unique({sessCells.rec});
         for ir=1:numel(recList)
             rec=recList{ir};
-            fprintf('   rec %s ...',rec)
+            fprintf('   rec %s ... ',rec)
             %copy the sniff
             sn = load(fn.rsm_data,'Sniff');
             save(fullfile(fn.fold_exp_data,sprintf('%s_%03d_%s_sniff.mat',mouse,sess,rec)),'-struct','sn','Sniff');
