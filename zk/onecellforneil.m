@@ -1,19 +1,26 @@
 % one unit for neil.
+% - calls the function just_a raster, that makes the trial structure and the
+%   spikes matrix
+% - makes the raster from the spikes matrix to compare with the rasters we
+%   already have and check consistency (i.e.; timestamps not screwed up).
+% 
 
-mouse    = 'KPawakeM72';
-sess     = 16;
-rec      = 'a';
-sessCell = 16;
+mouse    = 'ZKawakeM72';
+sess     = 13;
+rec      = 'f';
+sessCell = 10;
 
 fn=file_names(mouse,sess,rec);
-trial = neil_trial_structure(mouse,sess,rec);
-save(fn.exp_trial);
+% trial = neil_trial_structure(mouse,sess,rec);
+% save(fn.exp_trial);
 raster = just_a_raster(mouse,sess,rec,sessCell);
 
 
-%plot the raster for an odor
+% plot the raster for an odor
+% get the rasters from the spikes, to confirm that the spikes matrix is ok
+
 odor = '2-hydroxyacetophenone';
-odorTrials=find(strcmpi(odor,raster.odors))
+odorTrials=find(strcmpi(odor,raster.odors));
 odorSpikes = raster.spikes(odorTrials,:);
 
 nt=numel(odorTrials)

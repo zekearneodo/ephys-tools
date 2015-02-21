@@ -28,27 +28,34 @@ for it=1:numel(trial)
     tr.flow       = rsmSniff.Sniff(tVec);
     %the stimulus vector
     tr.stim       = zeros(1,t2-t1);
-    tr.odorTimes  = ttr.odorTimes + t1 ;
+    tr.odorTimes  = ttr.odorTimes - t1 ;
     stimTimes  = tr.odorTimes;
     stimTimes([tr.odorTimes]>t2-t1)=t2-t1;
     stimTimes([tr.odorTimes]<0)=0;
-    if(it==29)
-%         disp(it)
-    end
-%     disp(it);
-    tr.stim(stimTimes(1)-t1:stimTimes(2)-t1)=1;
+    tr.stim(stimTimes(1):stimTimes(2))=1;
 
     %the sniff zero times
 %     if it==105
 %     disp(it)
 %     end
+    %some debugging:
+    %plot the sniff, the stimulus and the sniffZero times for this trial
+    %and check how they align:
+%     figure
+%     hold on
+%     plot(tr.flow*-1)
+%     plot(tr.stim*10000,'r')
+%     plot(ttr.sniffZeroTimes(1,:)-t1,zeros(size(ttr.sniffZeroTimes(1,:))),'k*')
+%     plot(ttr.sniffZeroTimes(2,:)-t1,zeros(size(ttr.sniffZeroTimes(2,:))),'go')
+%     plot(ttr.sniffParabZeroTimes(2,:)-t1,zeros(size(ttr.sniffParabZeroTimes(2,:))),'mx')
     sn = zeros(size(tr.stim));
     try
-    if ~any(isnan(ttr.sniffParabZeroTimes))
+    if ~any(isnan(ttr.sniffParabZeroTimes(2,:)))
+        spZeros=[];
         spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)));
         spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)));
-        tr.sniffZeroTimes = ttr.sniffZeroTimes + t1;
-        sz = spZeros + t1*ones(size(spZeros));
+        tr.sniffZeroTimes = ttr.sniffZeroTimes - t1;
+        sz = spZeros - t1*ones(size(spZeros));
         firstSnif = find(sz>0,1,'first');
         lastSnif  = find(sz<t2,1,'last');
         sn(1:sz(firstSnif))=bitget(firstSnif-1,1);

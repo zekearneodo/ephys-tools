@@ -33,7 +33,7 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
     %get that trial structure and go trial by trial adding rows to the big
     %raster
     t1 = -200;
-    t2 = 400;
+    t2 = 2500;
     
     nt=numel(trial);
     odors   = {trial.odorName};
@@ -46,7 +46,6 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
     x    = zeros(1e5,1);    y    = zeros(1e5,1);
     nsp = 0;
 
-    
     for it = 1:nt
         %get all the spikes for this unit within the window tVec
         ii = find(trial(it).sniffZeroTimes(1,:)>trial(it).odorTimes(1)*1.009,1);
@@ -61,11 +60,6 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
         x(nsp+(1:n)) = spikeTimes(:);
         y(nsp+(1:n)) = it*ones(1,n);
         nsp = nsp + n;
-        %
-        if it==95
-          disp(it);
-        end
-        disp(it);
         if n>0
         spikes(it,spikeTimes-t1) = 1;   
         end
@@ -85,7 +79,7 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
     raster.spikes  = spikes;
     raster.t       = tVec;
     raster.rec     = rec;
-    raster.unitNumber = unitNumber;
+    raster.cell    = thisCell;
     
     %for quick debugging of rasters
     raster.x = x;
