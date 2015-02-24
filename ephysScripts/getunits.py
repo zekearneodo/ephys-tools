@@ -82,7 +82,7 @@ def main(argv):
             'odor'            : (int, 0, 'odor'),
             'comment'         : (str, ' ' , 'comment'),
             'quality'         : (int, 0, 'quality'),
-            'sessCell'        : (str, '', 'cell')
+            'sessCell'        : (int, 0, 'cell')
         }
 
         unit_set = {

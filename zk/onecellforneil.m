@@ -10,10 +10,11 @@ sess     = 13;
 rec      = 'f';
 sessCell = 10;
 
+cn=cells_neil();
 fn=file_names(mouse,sess,rec);
 % trial = neil_trial_structure(mouse,sess,rec);
 % save(fn.exp_trial);
-raster = just_a_raster(mouse,sess,rec,sessCell);
+raster = cn.just_a_raster(mouse,sess,rec,sessCell);
 
 
 % plot the raster for an odor
@@ -30,7 +31,7 @@ t1= -200;
 for it = 1:nt
     %disp(it)
     spikes = find(odorSpikes(it,:));
-    n = numel(spikes)
+    n = numel(spikes);
     x = [x spikes];
     y = [y it*ones(1,length(spikes))];
 end
@@ -43,3 +44,22 @@ plot(x,y, '.', 'MarkerSize',7)
 %the raster
 
 %the cell data
+% get the sniff and check the t0
+rsmSniff = load(fn.rsm_data,'Sniff');
+sniff=rsmSniff.Sniff*(-1.);
+figure
+hold
+plot(sniff)
+t0=raster.t0;
+plot(t0,zeros(size(t0)),'r*')
+
+%get all segments 200 ms before and 200 ms after and plot them all together
+ts1 =-200;
+ts2 = 200;
+
+sniff_cuts=zeros(numel(t0),(ts2-ts1+1));
+for i=1:numel(t0)
+    sniff_cuts(i,:) = sniff(t0(i)+ts1:t0(i)+ts2);
+end
+figure
+plot(sniff_cuts')

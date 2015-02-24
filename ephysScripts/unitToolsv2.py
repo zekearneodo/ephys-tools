@@ -222,12 +222,11 @@ class Mouse:
 
         unitsLabel = ['unit']
         unitPropsDefaults  = kwargs['unitProps']
-        unitProps = dict(unitPropsDefaults)
-        print unitProps
+        print unitPropsDefaults
         # append to each prop in unitProps an extra element in the tuple with the column in the spreadsheet
-        for propKey,propElem in unitProps.items():
-            if len(unitProps[propKey])==3:
-                unitProps[propKey] += self.get_label_col(propElem[2]),
+        for propKey,propElem in unitPropsDefaults.items():
+            if len(unitPropsDefaults[propKey])==3:
+                unitPropsDefaults[propKey] += self.get_label_col(propElem[2]),
         # now unitProps['property']=(type,default,labelInSpreadsheet,colInSpreadsheet)
 
         cellId=''
@@ -253,17 +252,27 @@ class Mouse:
                 #get the properties of the cell from the spreadsheet
                 # get the cell (row,column) and its value (it's a string).
                 # if it is not empty, convert it to the format specified in unitprops[propKey][0]
+                unitProps = unitPropsDefaults.copy()
                 for propKey, propElem in unitProps.items():
                     readVal  = self.workSheet.get_cell_value(icell+row,propElem[3])
                     propType = propElem[0]
-                    propVal  = propType(readVal) if type(readVal) is not NoneType and len(readVal)>0 else propElem[1]
+                    if type(readVal) is not NoneType and len(readVal)>0:
+                        if propType in [int,float,long,complex] and len(readVal)>0:
+                            try:
+                                propVal = propType(readVal)
+                            except:
+                                propVal = propElem[1]
+                        else:
+                            propVal  = propType(readVal)
+                    else:
+                        propVal = propElem[1]
                     unitProps[propKey]=unitProps[propKey][:1] + tuple([propVal]) + unitProps[propKey][2:]
 
-                if 'sessCell' in unitProps.keys() and unitProps['sessCell'][1].isdigit():
+                if 'sessCell' in unitProps.keys() and unitProps['sessCell'][1]>0:
                     #make the unit
                     nUnit+=1
                     cluList=[int(x) for x in unitListString.split(',')]
-                    cell_id = unitProps['sessCell'][1].zfill(3)
+                    cell_id = str(unitProps['sessCell'][1]).zfill(3)
                     tempUnit= Unit(self.mouse, sess['sess'], rec['rec'], cellId=cell_id, unitProps=unitProps)
                     tempUnit.fill_meta(cluList, unitProps)
                     units.append(tempUnit)

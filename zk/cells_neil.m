@@ -7,40 +7,42 @@
 %   of the cell
 % It saves:
 % - 
-function [cn, cellsArray]= cells_neil()
+function [cn, cellsArray]= cells_neil(doit)
 global cn
 
     cn.units_meta    = @units_meta;
     cn.just_a_raster = @just_a_raster;
+    cn.make_rasters  = @make_rasters;
     
-
-ffn=file_names();
-% load all cells in a cell structure
-mice = {'ZKawakeM72','KPawakeM72'};
-%mice = {'KPawakeM72'};
-%load all the cells into an array of cells
-disp(wrap_message('Getting cells and trial structures for Neil','*'));
-cellsArray = [];
-for is=1:numel(mice)
-    cs=mice{is};
-    cellFiles=dir(fullfile(ffn.fold_unit_db, [cs '*.mat']));
-    allCells = arrayfun(@(x) load(fullfile(ffn.fold_unit_db,x.name)),cellFiles,'UniformOutput',false);
-    cellsArray = [cellsArray [allCells{:}]];
-end
-
-%filter the cells by session (knowing when the experiments begun)
-keepCells =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>3) | (strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>5);
-
-cellsArray(~keepCells)=[];
-cellsArray(~([cellsArray.quality]==1))=[];
-% now you got an array of cells for the suffixes
-%with the cells selected, make all the units and place them ein the
-%export_data folder
-units_meta(cellsArray)
-% now go through all those cells and: 
-% - find them in all the recs they appear in
-% - make the raster for every rec
-% - append it to the cell's structure
+    if nargin>0 && doit==1
+        ffn=file_names();
+        % load all cells in a cell structure
+        mice = {'ZKawakeM72','KPawakeM72'};
+        %mice = {'KPawakeM72'};
+        %load all the cells into an array of cells
+        disp(wrap_message('Getting cells and trial structures for Neil','*'));
+        cellsArray = [];
+        for is=1:numel(mice)
+            cs=mice{is};
+            cellFiles=dir(fullfile(ffn.fold_unit_db, [cs '*.mat']));
+            allCells = arrayfun(@(x) load(fullfile(ffn.fold_unit_db,x.name)),cellFiles,'UniformOutput',false);
+            cellsArray = [cellsArray [allCells{:}]];
+        end
+        
+        %filter the cells by session (knowing when the experiments begun)
+        keepCells =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>3) | (strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>5);
+        
+        cellsArray(~keepCells)=[];
+        cellsArray(~([cellsArray.quality]==1))=[];
+        % now you got an array of cells for the suffixes
+        %with the cells selected, make all the units and place them ein the
+        %export_data folder
+        units_meta(cellsArray)
+        % now go through all those cells and:
+        % - find them in all the recs they appear in
+        % - make the raster for every rec
+        % - append it to the cell's structure
+    end
 
 end
 
@@ -108,16 +110,33 @@ function make_rasters(cellsArray)
 %   cellsArray : array of unit metadata structures (the output of
 %                getUnits.py)
 %
-cells = unique({cellsArray.uId});
+cells_uId = unique({cellsArray.uId});
 
-for ic = 1:numel(cells)
-    this_cell_instances = cellsArray(strcmpi(cells(ic),{cellsArray.uId}));
+for ic = 1:numel(cells_uId)
+    this_cell_instances = cellsArray(strcmpi(cells_uId(ic),{cellsArray.uId}));
     %for all the instances of this cell (recs it is in)
     %gather the rasters.
     raster = arrayfun(@(x) just_a_raster(x.mouse,x.sess,x.rec,x.sessCell),this_cell_instances);
     
-end
+    %data for the unit
+    %quick check for screw ups in following the cell through recs
+    %if the cell is litral its litral in all recs
+    one_cell.light = unique([this_cell_instances.light]);
+    if length(one_cell.light)>1
+        warning('Mismatch in light responsiveness of cell %s trhough recs. Skipping cell.',cells_uId(ic))
+    end
+    
+    one_cell.mouse  = this_cell_instances(1).mouse;
+    one_cell.sess   = this_cell_instances(1).sess;
+    one_cell.uid    = sprintf('%s_%03d_%03d',one_cell.mouse,one_cell.sess,this_cell_instances(1).sessCell);
+    
+    one_cell.raster = raster;
 
+    %save it
+    fn=file_names(one_cell.mouse,one_cell.sess);
+    cellFn=fullfile(fn.fold_exp_data,sprintf('%s_cell.mat',one_cell.uid));
+    save(cellFn,'-struct','one_cell');
+end
 
 end
 
@@ -164,6 +183,7 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
     trialId = {trial.id};
     tVec = (t1:t2);
     spikes = zeros(nt,length(tVec));
+    t0Vec = nan(1,numel(trial));
     sp = round(thisUnit.times);
     
     x    = zeros(1e5,1);    y    = zeros(1e5,1);
@@ -177,6 +197,7 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
         end
         t0 = trial(it).sniffZeroTimes(1,ii) + trial(it).start;
         spikeTimes = sp((sp>t0+t1)&(sp<t0+t2))-t0;
+        t0Vec(it) = t0;
         
         % compact raster
         n=numel(spikeTimes);
@@ -201,8 +222,10 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
     raster.trialId = trialId;
     raster.spikes  = spikes;
     raster.t       = tVec;
+    raster.t0      = t0Vec;
     raster.rec     = rec;
     raster.cell    = thisCell;
+    
     
     %for quick debugging of rasters
     raster.x = x;
