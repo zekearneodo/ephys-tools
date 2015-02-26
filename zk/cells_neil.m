@@ -140,6 +140,7 @@ end
 
 end
 
+
 function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Script for creating big raster of all the trials for a cell for neil,
@@ -231,6 +232,15 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
     raster.x = x;
     raster.y = y;
     
+end
+
+function [base] = just_a_baseline(mouse,sess,rec,unitSessNumber)
+%%% Script for creating big raster of all the trials for a cell for neil,
+%%% using the trial structure from export_data
+%returns one raster for one particular rec in which the cell appears.
+%unitId is the unit identifier trhough the session.
+
+
 end
 
 function trials = neil_trial_structure(mouse,sess,rec)

@@ -44,6 +44,7 @@ end
     dm.pid_graph          = @pid_graph;
     dm.pid_multi_graph    = @pid_multi_graph;
     dm.pid_max_graph      = @pid_max_graph;
+    dm.pid_match_vials    = @pid_match_vials;
     dm.pid_graph_all      = @pid_graph_all;
     dm.pid_all_series     = @pid_all_series;
     dm.pid_analysis       = @pid_analysis;
@@ -528,6 +529,8 @@ if ~isempty(N2_pidStruct)
     pid_traces = pid_traces - average_N2_PIDtrace*ones(1,size(pid_traces,2));
 end
 
+bad_traces = find(isnan(mean(pid_traces(measureSegment,:))));
+pid_traces(:,bad_traces)=[];
 amplitude = mean(pid_traces(measureSegment,:));  % assumes that the baseline is 0
 deviation = std(amplitude);
 pid_traces = pid_traces(:,(abs(amplitude- mean(amplitude))<deviation*2));  % remove outlier trials
@@ -782,11 +785,9 @@ for i = 1:numel(dillution)
         leg2{end+1} = sprintf('[vial] = %0.3d, ext. dil. 1:%d',vialConc(j),dillution(i));
         vialConcVec = [vialConcVec vialConc(j)];
         dilVec      = [dilVec dillution(i)];
-        vialVec     = [vialVec vial_lookup(pidStruct,odor,vialConc(j))]
+        vialVec     = [vialVec vial_lookup(pidStruct,odor,vialConc(j))];
     end
 end
-
-
 
 %trials that have this odor
 % vials   = unique([inputstruct(strncmp({inputstruct.odor},odor,length(odor))).vial]);
@@ -819,7 +820,7 @@ for di=1:numel(dillution)
             end
             
             
-            if ~isnan(PID_ts_i)
+            if ~isnan(amplitude_i)
                 PID_timeseries(:,end+1) = PID_ts_i*ratio;
                 amplitude((di-1)*(length(vialConc))+vC,oC) = amplitude_i;
                 amp_snf1((di-1)*(length(vialConc))+vC,oC) = amp_snf1_i;
@@ -885,6 +886,7 @@ function [odors]=pid_all_series(trPid)
      odors(io).dillution= unique([trPid(trials).dillution]);
      odors(io).concPlot = pid_multi_graph( trPid, odors(io).odor, odors(io).odorConc, odors(io).vialConc, odors(io).dillution, trPidN2);
      odors(io).maxPlot  = pid_max_graph( trPid, odors(io), trPidN2);
+     odors(io).matchVial= pid_match_vials(trPid,odors(io), [1 2]);
      %if there are more than 1 viales with the same liquid dillution,
      %calculate their effective dillution (relative to hightest conc).
      %WORKS WITH ONLY TWO MATCHED VIALS!!!
@@ -1039,6 +1041,7 @@ for ir=1:numel(recList)
 end
 
 
+
 % This will do the little calculation of concentration corrections for you
 %   Note: assumes that i) only 2 vials compared, and ii) original flow rates were 100:900
 % for io = 1:numel(pidAn.odors)
@@ -1061,9 +1064,110 @@ end
 % end
 end
 
+function [matching] = pid_match_vials(pidStruct,odorInfo,vialOrders)
+% find a matching point of 2 vials.
+% vial_orders is the order of vials (1 is highest conc (neat), 2 is c0, 3
+% is c-1, 4 is c-2...
+
+% get the vials in the right order, by number
+
+vialOrders = sort(vialOrders);
+
+odorVials = unique([odorInfo.trPid.vial]);
+vialConc  = arrayfun(@(x) unique([odorInfo.trPid([odorInfo.trPid.vial]==x).vialConc]),odorVials);
+[vC, iV]  = sort(vialConc,'descend');
+selVialsIdx = arrayfun(@(x) find(iV==x),vialOrders);
+selVials    = odorVials(selVialsIdx);
+
+
+leg = {};
+leg2 = {};
+
+% get the amplitudes for the higher vial
+% all the concentrations for the vial:
+dillution = 1;
+vial = selVials(min(vialOrders));
+higVialConc = unique([odorInfo.trPid([odorInfo.trPid.vial]==vial).vialConc]);
+odor = odorInfo.odor;
+odorConcHigh=unique([odorInfo.trPid([odorInfo.trPid.vial]==vial).odorConc]);
+leg2{end+1} = sprintf('[vial] = %0.3d',higVialConc);
+highVialPoints=numel(odorConcHigh);
+
+%now get the highest one of the second vial, which is the one to match
+%(generalizable to nth vial)
+nLower = 2;
+lowerVial = min(vialOrders,nLower);
+lowerVial(1:end-1)=[];
+vial = selVials(min(lowerVial));
+lowerVialConc = unique([odorInfo.trPid([odorInfo.trPid.vial]==vial).vialConc]);
+odorConcLow=max(unique([odorInfo.trPid([odorInfo.trPid.vial]==vial).odorConc]));
+leg2{end+1} = sprintf('[vial] = %0.3d',lowerVialConc);
+
+
+odorConc = sort([odorConcHigh odorConcLow]);
+PID_timeseries = [];
+amplitude = NaN(length(vialOrders),length(odorConc));
+
+for oC=1:highVialPoints
+    %gather the amplitudes for the higher vial
+    PID_ts_i = nan;
+    amplitude_i=nan;
+    amp_snf1_i=nan;
+    [PID_ts_i,amplitude_i,amp_snf1_i] = pid_graph(pidStruct,odor,odorConcHigh(oC),higVialConc,dillution,[],1);
+    if ~isnan(amplitude_i)
+        PID_timeseries(:,end+1) = PID_ts_i;
+        iC = find(odorConc==odorConcHigh(oC));
+        amplitude(1,iC) = amplitude_i;
+        amp_snf1(1,iC)  = amp_snf1_i;
+        if iscell(odor)
+            odorName=odor{1};
+        else
+            odorName=odor;
+        end
+        leg{end+1} = sprintf('[c] = %0.5d,[vial] = %0.3d',odorConc(oC),higVialConc);
+    end
+end
 
 
 
+PID_ts_i = nan;
+amplitude_i=nan;
+amp_snf1_i=nan;
+[PID_ts_i,amplitude_i,amp_snf1_i] = pid_graph(pidStruct,odor,odorConcLow,lowerVialConc,dillution,[],1);
+if ~isnan(amplitude_i)
+    PID_timeseries(:,end+1) = PID_ts_i;
+    iC = find(odorConc==odorConcLow)
+    amplitude(nLower,iC) = amplitude_i;
+    amp_snf1(nLower,iC)  = amp_snf1_i;
+    if iscell(odor)
+        odorName=odor{1};
+    else
+        odorName=odor;
+    end
+    leg{end+1} = sprintf('[c] = %0.5d,[vial] = %0.3d',odorConc(iC),lowerVialConc);
+end
+
+matching.amplitude = amplitude;
+
+%Plot the PID traces
+figure
+plot(PID_timeseries,'.')
+legend(leg,'Location','best')
+xlabel ('mV')
+ylabel ('t(msec)')
+title(odorName)
+
+%plot the amplitudes
+figure
+plot((odorConc),amplitude,'o-')
+legend(leg2,'Location','best')
+ylabel('log mv')
+xlabel('log concentration')
+title(odorName)
+hold on
+%plot((odorConc),amplitudeFit,'.-')
+
+end
 
 function vial = vial_lookup(trPid,odor,vialConc)
 %lookup the vial that has that odor at that concentration, to 6 digits
