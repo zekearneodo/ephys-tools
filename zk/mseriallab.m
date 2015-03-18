@@ -1,3 +1,7 @@
+%Testing of the selialNumbers class and the virtualserial classes
+% ZK
+% December 2014
+
 clear serialNumbers serialdata virtualserial
 close all
 %get me a serial from a mouse
