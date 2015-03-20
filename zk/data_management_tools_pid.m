@@ -1127,8 +1127,11 @@ for oC=1:highVialPoints
         leg{end+1} = sprintf('[c] = %0.5d,[vial] = %0.3d',odorConc(oC),higVialConc);
     end
 end
-
-
+%make a fit for the higher vial, following the pid manual:
+% C=a1_V^2+a_2V+a_3
+high_fit=polyfit(amplitude(1,~isnan(amplitude(1,:))),odorConcHigh,2);
+fit_amp = linspace(min(amplitude(1,:)),max(amplitude(1,:)),1000);
+fit_c   = polyval(high_fit,fit_amp);
 
 PID_ts_i = nan;
 amplitude_i=nan;
@@ -1136,7 +1139,7 @@ amp_snf1_i=nan;
 [PID_ts_i,amplitude_i,amp_snf1_i] = pid_graph(pidStruct,odor,odorConcLow,lowerVialConc,dillution,[],1);
 if ~isnan(amplitude_i)
     PID_timeseries(:,end+1) = PID_ts_i;
-    iC = find(odorConc==odorConcLow)
+    iC = find(odorConc==odorConcLow);
     amplitude(nLower,iC) = amplitude_i;
     amp_snf1(nLower,iC)  = amp_snf1_i;
     if iscell(odor)
@@ -1159,13 +1162,20 @@ title(odorName)
 
 %plot the amplitudes
 figure
-plot((odorConc),amplitude,'o-')
+plot(amplitude,(odorConc),'o-')
 legend(leg2,'Location','best')
-ylabel('log mv')
-xlabel('log concentration')
+xlabel('mv')
+ylabel('concentration')
 title(odorName)
 hold on
+plot(fit_amp,fit_c,'-.','LineWidth',0.1)
 %plot((odorConc),amplitudeFit,'.-')
+
+%find the matching c:
+
+match=find(fit_amp>max(amplitude(nLower,:)),1);
+plot(fit_amp(match),fit_c(match),'x');
+gamma=max(lowerVialConc)/fit_c(match);
 
 end
 
