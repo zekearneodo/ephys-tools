@@ -42,3 +42,29 @@ fig=pp.plot_neural_data(data)
 [u,s,v]=svd(data);
 pp.plot_neural_data(u(:,1:8));
 pp.plot_neural_data(u(1:8,:)');
+
+    data_clean=data;
+    data_noise=zeros(size(data));
+%substract all the common components to one channel
+for ich=1:8;
+    chans=1:numel(chan_list);
+    chans_noti=chans(~(chans==ich));
+    data_noti=data(:,chans_noti);
+
+    %pp.plot_neural_data(data_noti);
+    [u,s,v]=svd(data_noti,0);
+    b=zeros(1,3);
+    for ic=1:3
+        b(ic)=dot(data(:,ich),u(:,ic))/norm(u(:,ic));
+        data_noise(:,ich)=data_noise(:,ich)+b(ic)*u(:,ic);
+    end
+    data_clean(:,ich)=data_clean(:,ich)-data_noise(:,ich);
+end
+pp.plot_neural_data(data_noise);
+pp.plot_neural_data(data_clean);
+
+figure
+plot(data(:,ich))
+hold
+plot(data_clean(:,ich))
+
