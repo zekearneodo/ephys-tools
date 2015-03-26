@@ -58,18 +58,24 @@ pp.get_info_fields= @get_info_fields;
 pp.trial_prep     = @trial_prep;
 pp.basicVoyerRead = @basicVoyerRead;
 
+pp.read_analog_channel = @read_analog_channel;
+
+pp.plot_neural_data = @plot_neural_data;
 
 if nargin>2 && ~isempty(stat) && ~strcmp(stat,'local')
     pull_data(mouse,sess,stat);
 end
 
-read_info(mouse, sess);
-ss_prep(mouse, sess);
-klusta_par_make(mouse,sess);
-%xml_make(mouse,sess); % now ss_prep decides wether to make xml fle or prm
-%file
-resampling(mouse, sess)
-%trial_prep(mouse, sess)
+if nargin>1 && ~isempty(mouse) && ~isempty(sess)
+    read_info(mouse, sess);
+    ss_prep(mouse, sess);
+    klusta_par_make(mouse,sess);
+    %xml_make(mouse,sess); % now ss_prep decides wether to make xml fle or prm
+    %file
+    resampling(mouse, sess)
+    %trial_prep(mouse, sess)
+end
+
 end
 
 function read_info(mouse, sess)
@@ -1280,3 +1286,18 @@ function pull_data(mouse, sess, stat)
     fprintf('===========================================================================\n')
 end
 
+function Y = read_analog_channel(fid, ich, nch)
+fseek(fid, 2*(ich-1), 'bof');
+Y = fread(fid, inf, 'int16', (nch-1)*2);
+end
+
+function fig = plot_neural_data(data)
+% plot a segment of a multi channel data with channels as columns (npoints,nchans);
+var_range = max(range(data,1));
+[points chans] = size(data);
+for i=1:chans
+    data(:,i) = (data(:,i) - mean(data(:,i)))/var_range + i;
+end
+fig=figure;
+plot(data)
+end
