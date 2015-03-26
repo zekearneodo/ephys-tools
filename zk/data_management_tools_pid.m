@@ -1177,7 +1177,9 @@ plot(fit_amp,fit_c,'-.','LineWidth',0.1)
 
 match=find(fit_amp>max(amplitude(nLower,:)),1);
 plot(fit_amp(match),fit_c(match),'x');
-gamma=max(lonerVialConc)/fit_c(match)
+%the concentration relative to the vial with the series
+referenced_vial_conc = fit_c(match)*(max(lonerVialConc)/odorConcLone);
+gamma=referenced_vial_conc/seriesVialConc;
 
 end
 
