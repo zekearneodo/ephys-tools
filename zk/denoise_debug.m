@@ -35,17 +35,18 @@ end
 %plot a segment
 data_range=(1:1953);
 data = raw_data(data_range,:);
+data=bsxfun(@minus,data,mean(data));
 
 fig=pp.plot_neural_data(data)
 
 %start playing with the segment
 [u,s,v]=svd(data);
-pp.plot_neural_data(u(:,1:8));
-pp.plot_neural_data(u(1:8,:)');
 
-    data_clean=data;
-    data_noise=zeros(size(data));
+
 %substract all the common components to one channel
+
+data_clean=data;
+data_noise=zeros(size(data));
 for ich=1:8;
     chans=1:numel(chan_list);
     chans_noti=chans(~(chans==ich));

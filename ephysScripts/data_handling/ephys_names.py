@@ -19,7 +19,7 @@ from scipy import io
 from types import *
 from sys import stdout
 
-class FileNames:
+class file_names:
 
     def __init__(self,mouse,sess,rec='',run=0,root=''):
 

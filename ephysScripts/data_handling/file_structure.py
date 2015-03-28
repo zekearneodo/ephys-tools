@@ -24,4 +24,5 @@ def get_root(self,config_file='',computer_name='',root=''):
 def get_sess_list(mouse,root=''):
     if not root:
         root = get_root()
+    return
 
