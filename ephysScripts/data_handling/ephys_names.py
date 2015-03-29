@@ -72,12 +72,12 @@ class file_names:
 
         if rec:
             self.rec=rec
-            self.fold_ss_rec = path.join(self.fold_ss_data,'rec_{0}'.format(rec))
+            self.fold_ss_rec = path.join(self.fold_ss_sess,'rec_{0}'.format(rec))
 
-            self.ss_rec      = path.join(self.fold_ss_rec,'rec{0}.dat'.format(rec))
-            self.ss_kk2_prm  = path.join(self.fold_ss_sess,'rec{0}.prm'.format(rec))
-            self.ss_xml      = path.join(self.fold_ss_sess,'rec{0}.xml'.format(rec))
-            self.lfp         = path.join(self.fold_ss_rec,'rec{0}.dat'.format(rec))
+            self.ss_rec      = path.join(self.fold_ss_rec,'rec_{0}.dat'.format(rec))
+            self.ss_kk2_prm  = path.join(self.fold_ss_sess,'rec_{0}.prm'.format(rec))
+            self.ss_xml      = path.join(self.fold_ss_sess,'rec_{0}.xml'.format(rec))
+            self.lfp         = path.join(self.fold_ss_rec,'rec_{0}.dat'.format(rec))
 
             self.rsm_data    = path.join(self.fold_pr_sess,'{0}_{1}_{2}_rsm.mat'.format(self.mouse,self.sess_str,rec))
             self.trial       = path.join(self.fold_pr_sess,'{0}_{1}_{2}_trial.mat'.format(self.mouse,self.sess_str,rec))
