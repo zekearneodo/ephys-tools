@@ -10,13 +10,13 @@ classdef klustapar < handle
         sample_rate     = 20000;
         nchannels       = 32;
         
-        filter_high         = 0.95;
+        filter_high_sec     = 0.95;
         filter_butter_order = 3;
-        filter_lfp_low      = 0;  % LFP filter low-pass frequency
-        filter_lfp_high     = 300;  % LFP filter high-pass frequency
+        %filter_lfp_low      = 0;  % LFP filter low-pass frequency
+        %filter_lfp_high     = 300;  % LFP filter high-pass frequency
     
-        chunk_size    = 1 ;% in seconds
-        chunk_overlap = 0.015; %in seconds
+        chunk_size_sec    = 1 ;% in seconds
+        chunk_overlap_sec = 0.015; %in seconds
         
         %saving raw/filtered data
         save_raw  = true
@@ -25,19 +25,19 @@ classdef klustapar < handle
         
         %spike detection
         nexcerpts = 50;
-        excerpt_size = 1.;
+        excerpt_size_sec = 1.;
         threshold_strong_std_factor = 4.;
         threshold_weak_std_factor = 2.;
         weight_power = 2.;
         detect_spikes = 'negative';
         
         %connected_component
-        connected_component_join_size = 0.00005;
+        connected_component_join_size_sec = 0.00005;
         % Spike extraction
 
-        extract_s_before = 16;
-        extract_s_after = 16;
-        waveforms_nsamples = 32;
+        extract_s_before = 10;
+        extract_s_after = 10;
+        waveforms_nsamples = 20;
         
         % Features
         nfeatures_per_channel = 3  ;% Number of features per channel.
@@ -47,25 +47,26 @@ classdef klustapar < handle
         %%%%%%%%%%%%%%%%%%%%%%%%%
         % KlustaKwik parameters %
         %%%%%%%%%%%%%%%%%%%%%%%%%
-        MaskStarts = 100;
-        %MinClusters = 100
-        %MaxClusters = 110
-        MaxPossibleClusters =  500;
-        FullStepEvery =  10;
-        MaxIter = 10000;
-        RandomSeed =  654;
-        Debug = 0;
-        SplitFirst = 20;
-        SplitEvery = 100;
-        PenaltyK = 0;
-        PenaltyKLogN = 1;
-        Subset = 1;
-        PriorPoint = 1;
-        SaveSorted = 0;
-        SaveCovarianceMeans = 0;
-        UseMaskedInitialConditions = 1;
-        AssignToFirstClosestMask = 1;
-        UseDistributional = 1;
+        KK_MaskStarts = 500;
+        KK_MinClusters = 100
+        KK_MaxClusters = 110
+        KK_MaxPossibleClusters =  1000;
+        KK_FullStepEvery =  10;
+        KK_MaxIter = 10000;
+        KK_RandomSeed =  654;
+        KK_Debug = 0;
+        KK_SplitFirst = 20;
+        KK_SplitEvery = 40;
+        KK_PenaltyK = 0;
+        KK_PenaltyKLogN = 1;
+        KK_Subset = 1;
+        KK_PriorPoint = 1;
+        KK_SaveSorted = 0;
+        KK_SaveCovarianceMeans = 0;
+        KK_UseMaskedInitialConditions = 1;
+        KK_AssignToFirstClosestMask = 1;
+        KK_UseDistributional = 1;
+        KK_RamLimitGB = 120;
     end
     
     methods
@@ -96,11 +97,11 @@ classdef klustapar < handle
             % compute all the values that depend on other parameters
             fullObj = obj;
             sRate = obj.sample_rate;
-            fullObj.filter_high = obj.filter_high * 0.5 * sRate;
-            fullObj.chunk_size  = round(obj.chunk_size * sRate);
-            fullObj.chunk_overlap  = round(obj.chunk_overlap * sRate);
-            fullObj.excerpt_size  = round(obj.excerpt_size * sRate);
-            fullObj.connected_component_join_size  = round(obj.connected_component_join_size * sRate);
+            fullObj.filter_high = obj.filter_high_sec * 0.5 * sRate;
+            fullObj.chunk_size  = round(obj.chunk_size_sec * sRate);
+            fullObj.chunk_overlap  = round(obj.chunk_overlap_sec * sRate);
+            fullObj.excerpt_size  = round(obj.excerpt_size_sec * sRate);
+            fullObj.connected_component_join_size  = round(obj.connected_component_join_size_sec * sRate);
             fullObj.waveforms_nsamples = obj.extract_s_before + obj.extract_s_after;
         end
         
