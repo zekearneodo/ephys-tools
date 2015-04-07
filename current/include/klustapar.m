@@ -67,12 +67,21 @@ classdef klustapar < handle
         KK_AssignToFirstClosestMask = 1;
         KK_UseDistributional = 1;
         KK_RamLimitGB = 120;
+        
+        % compute all the values that depend on other parameters
+        filter_high = 0
+        chunk_size  = 0
+        chunk_overlap  = 0
+        excerpt_size  = 0
+        connected_component_join_size  = 0
+            
     end
     
     methods
         
         function obj = klustapar(quiet)
             % if quiet is 'quiet', don't display the defaults
+            obj = compute_pars(obj);
             if nargin > 0 && strcmpi('quiet',quiet)
                 return
             else

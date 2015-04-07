@@ -49,6 +49,7 @@ end
 
 pp.read_log_file  = @read_log_file;
 pp.read_data_dir  = @read_data_dir;
+pp.read_info      = @read_info;
 pp.ss_prep        = @ss_prep;
 pp.xml_make       = @xml_make;
 pp.klusta_par_make= @klusta_par_make;
@@ -61,6 +62,9 @@ pp.basicVoyerRead = @basicVoyerRead;
 pp.read_analog_channel = @read_analog_channel;
 
 pp.plot_neural_data = @plot_neural_data;
+
+pp.detect_spikes = @detect_spikes;
+pp.pca_denoise_chunk = @pca_denoise_chunk;
 
 if nargin>2 && ~isempty(stat) && ~strcmp(stat,'local')
     pull_data(mouse,sess,stat);
@@ -609,8 +613,8 @@ function ss_prep(mouse, sess)
         S = read_analog_channel(fid, ich, nch);
         thr = mean(S);
         pl = find(diff(S>thr)==1);
-        figure
-        plot(S(1:10000))
+        %figure
+        %plot(S(1:10000))
     end
     % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     function Y = read_analog_channel(fid, ich, nch)
@@ -1291,13 +1295,125 @@ fseek(fid, 2*(ich-1), 'bof');
 Y = fread(fid, inf, 'int16', (nch-1)*2);
 end
 
-function fig = plot_neural_data(data)
+function fig = plot_neural_data(data,plot_range)
 % plot a segment of a multi channel data with channels as columns (npoints,nchans);
+[points, chans] = size(data);
+
+if nargin<2 || isempty(plot_range)
+    plot_range = [1 points];
+end
+
 var_range = max(range(data,1));
-[points chans] = size(data);
 for i=1:chans
     data(:,i) = (data(:,i) - mean(data(:,i)))/var_range + i;
 end
+
 fig=figure;
-plot(data)
+plot(data(plot_range(1):plot_range(2),:))
+end
+
+function [spikes] = detect_spikes(data, par)
+%detect supra_threshold activity in any channels of a channel group
+fprintf('Getting spike candidates\n');
+%params (named by default as in klustasuite rc1:
+% nexcerpts = 50
+% excerpt_size = int(1*sample_rate) 1 second
+% threshold_strong_std_factor = 4
+% threshold_strong_std_factor = 2
+% detect_spikes = 'negative'
+% 
+
+%get the standard deviations of the channels
+[samples, channels] = size(data);
+
+%invert the data (spikes are negative)
+%unless detect_spikes is positive
+if ~strcmpi(par.detect_spikes,'positive')
+    data = -1*data;
+end
+
+sd_starts = randi(samples-par.excerpt_size-1, par.nexcerpts, 1);
+sd_select = cell2mat(arrayfun(@(x) x+(1:par.excerpt_size),sd_starts,'UniformOutput',false));
+sd_select = reshape(sd_select',[],1);
+
+spikes=[];
+sd=arrayfun(@(x) std(data(sd_select,x)),1:channels);
+
+%set thresholds
+lo_thresh = sd * par.threshold_strong_std_factor;
+hi_thresh = sd * par.threshold_weak_std_factor;
+
+%look for events in all channels
+
+for ch=1:channels
+    fprintf('Channel %d/%d ...',ch,channels);
+    [pks, locs] = findpeaks(data(:,ch),'MinPeakHeight',lo_thresh(ch));
+    spikes{ch} = locs;
+    fprintf(' done\n');
+end
+
+end
+
+function data = pca_denoise_chunk(data, par)
+% apply pca denoise to a chunk of a file
+% data = chunk of a data matrix (columns are channels)
+% par  = spike detection parameters
+
+%plot a segment
+data=bsxfun(@minus,data,mean(data));
+[~, n_chans] = size(data);
+%substract all the common components to one channel
+data_noise = zeros(size(data));
+data_clean = data;
+for ich=1:n_chans;
+    chans=1:n_chans;
+    chans_noti=chans(~(chans==ich));
+    %pp.plot_neural_data(data(plot_range,chans_noti));
+    [u,~,~]=svd(data(:,chans_noti),'econ');
+    b=zeros(1,3);
+    for ic=1:3
+        b(ic)=dot(data(:,ich),u(:,ic))/norm(u(:,ic));
+        data_noise(:,ich)=data_noise(:,ich)+b(ic)*u(:,ic);
+    end
+    data_clean(:,ich)=data_clean(:,ich)-data_noise(:,ich);
+end
+
+%plot_neural_data(data_noise(plot_range,:));
+%plot_neural_data(data_clean(plot_range,:));
+
+%get the spike candidates and replace the supra-trheshold events by the
+%common noise component
+%get spikes in the cleaned matrix
+spikes = detect_spikes(data_clean,par);
+%replace spikes with noise data in a copy of the raw data
+data_nospikes=data;
+for ich = 1:n_chans
+    events     = spikes{ich};
+    ev_select  = cell2mat(arrayfun(@(x) (x-par.extract_s_before):(x+par.extract_s_before),events,'UniformOutput',false));
+    data_nospikes(ev_select,ich) = data_noise(ev_select,ich);
+end
+
+% now do the second stage:
+% go through the data and subtract the projections of the pcs
+% but now the data_noti comes from data_nospikes
+
+%substract all the common components to one channel
+data_noise = zeros(size(data));
+data_clean = data;
+for ich=1:n_chans;
+    chans=1:n_chans;
+    chans_noti=chans(~(chans==ich));
+    %pp.plot_neural_data(data(plot_range,chans_noti));
+    [u,~,~]=svd(data_nospikes(:,chans_noti),'econ');
+    b=zeros(1,3);
+    for ic=1:3
+        b(ic)=dot(data(:,ich),u(:,ic))/norm(u(:,ic));
+        data_noise(:,ich)=data_noise(:,ich)+b(ic)*u(:,ic);
+    end
+    data_clean(:,ich)=data_clean(:,ich)-data_noise(:,ich);
+end
+
+%plot_neural_data(data_noise(plot_range,:));
+%plot_neural_data(data_clean(plot_range,:));
+
 end
