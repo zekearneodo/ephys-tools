@@ -62,22 +62,25 @@ end
 %    Saves all relevant attributes in struct PidAn.concPlot
 
 
-function [calResult,pidAn] = pid_analysis(pid,sess,trPid,stat)
+function [calResult,pidAn,trPid] = pid_analysis(pid,sess,trPid,stat)
 %pull_pid_data
 %pid_get
 %pid_all_series
 %calculate_calibration
-set(0,'DefaultAxesFontSize',20)
-% global N_tr flow_results
+% fontsz = 14;
+set(0,'DefaultAxesFontSize',14)
+global N_tr lost_trials
 
 %Pull the data from remote station if stat was included as an input argument
 if nargin>3 && ~isempty(stat) && ~strcmp(stat,'local')
     pull_data(pid,sess,stat); %pid files must end with _pid.h5
 end
 
+% N_tr = 5;
 
 %%%%%
 %Get the pid traces and plot by odor and vial. 
+pidAn = struct();
 recList=['a'];
 for ir=1:numel(recList)
     if ~exist('trPid','var')
@@ -94,7 +97,7 @@ end
 %  Choose whether you want to run calibration program or stimulus check
 prompt = 'Press ENTER to run calibration, or type 1 to run check, or 0 to end here.\n';
 call_program = input(prompt); fprintf('\n')
-
+% call_program = [];
 if isempty(call_program) %Call function to calculate flow rates 
     calResult = calculate_calibration(pidAn);
     
@@ -159,16 +162,15 @@ for io = 1:numel(pidAn.odors)
             set_N2_flow = round(100*further_dil);
             
             P_target = PL_solve_for_PIDamp(pidAn.odors(io).concPlot.fitParams(iv,:),Z_conc(iv));
-            
         end
         
         fprintf('vial: %4.6f\n  set N2:air flows to: %i:%i\n',pidAn.odors(io).vialConc(iv),set_N2_flow,1000-set_N2_flow)
         
-        vials(iv).vialConc = pidAn.odors(io).vialConc(iv);
-        vials(iv).N2_flow = set_N2_flow;
-        vials(iv).derived_conc = Z_conc(iv);
-        vials(iv).PID_amp_match = P_target;
-        vials(iv).PL_fit_params = pidAn.odors(io).concPlot.fitParams(iv,:);
+        vials(iv-1).vialConc = pidAn.odors(io).vialConc(iv);
+        vials(iv-1).N2_flow = set_N2_flow;
+        vials(iv-1).derived_conc = Z_conc(iv);
+        vials(iv-1).PID_amp_match = P_target;
+        vials(iv-1).PL_fit_params = pidAn.odors(io).concPlot.fitParams(iv,:);
     end %for iv = vials
     
     calResult(io).odor = strtrim(pidAn.odors(io).odor{1});
@@ -176,95 +178,6 @@ for io = 1:numel(pidAn.odors)
 end
 aaa=234;
 end
-    %     else % old C0 to neat matching method, for back compatibility
-    %
-    %         if any(pidAn.odors(io).vialConc == 1)
-    %             try
-    %                 neat_vial_i = find(pidAn.odors(io).vialConc == 1);
-    %                 high_vial = find(pidAn.odors(io).vialConc ~= 1,1,'first');
-    %
-    %                 % Calculation of ratio, for keeping track of drifts
-    %                 V0_100_amp = pidAn.odors(io).concPlot.amp(high_vial,find(~isnan(pidAn.odors(io).concPlot.amp(high_vial,:)),1,'last'));
-    %                 [C0_neat_this_sess] = PL_solve_for_conc(pidAn.odors(io).concPlot.fitParams(neat_vial_i,:),V0_100_amp,pidAn.odors(io).vialConc(neat_vial_i))
-    %
-    %                 % Based on previously calculated reference to neat, calculate
-    %                 % amplitude and flow rates for C0 this recording.
-    %                 if strncmp('2-hydroxyacetophenone',strtrim(pidAn.odors(io).odor{1}),6)
-    %                     reference_neat_proportion = 0.053
-    %                 elseif strncmp('menthone',strtrim(pidAn.odors(io).odor{1}),6)
-    %                     reference_neat_proportion = 0.038
-    %                 end
-    %
-    %                 [P_target] = PL_solve_for_PIDamp(pidAn.odors(io).concPlot.fitParams(neat_vial_i,:),reference_neat_proportion);
-    %                 %         [Z_conc, set_N2_flow] = PL_solve_for_conc(pidAn.odors(io).concPlot.fitParams(high_vial,:),P_target,pidAn.odors(io).vialConc(high_vial))
-    %
-    %                 if set_N2_flow>110
-    %                     err_msg = sprintf('The highest concentration stimulus cannot be reached!!\nThe vial concentration has drifted significantly below the reference value.');
-    %                     error(err_msg)
-    %                 end
-    %             catch
-    %                 if io == numel(pidAn.odors) && call_next_sess
-    %                     %pause to give user a chance to look at plots
-    %                     call_next_sess = input('Check out the neat/high data... \nPress enter to call next session, or type 0 to end here.');
-    %                     if isempty(call_next_sess)
-    %                         [calResult,pidAn] = pid_analysis(pidAn.pidname,pidAn.sess+1);
-    %                     elseif call_next_sess==0
-    %                         return
-    %                     end
-    %                 end
-    %             end
-    %         else
-    %             vials = struct();
-    %             for iv = 1:numel(pidAn.odors(io).vialConc)
-    %                 if iv == 1 %match highest vial to neat odor
-    %                     % Take the result from the above of the concentration to
-    %                     % use, and calculate PID amp under new gain settings
-    %                     prompt = 'From the calibration to the neat odor,\nwhat is the target concentration value for the highest vial?\n output argument: P_target \n';
-    %                     P_target = input(prompt); fprintf('\n')
-    %
-    %                     %                 if strncmp('2-hydroxyacetophenone',strtrim(pidAn.odors(io).odor{1}),6)
-    %                     %                     Z_target = 0.005;
-    %                     %                 elseif strncmp('menthone',strtrim(pidAn.odors(io).odor{1}),6)
-    %                     %                     Z_target = 0.0156;
-    %                     %                 end
-    %
-    %                     %                 [P_target] = PL_solve_for_PIDamp(pidAn.odors(io).concPlot.fitParams(iv,:),Z_target);
-    %                 else %match lower vials to the one above
-    %
-    %                     Z_target = vials(iv-1).derived_conc / 10;
-    %
-    %                     fitParams_higher = vials(iv-1).PL_fit_params;
-    %                     [P_target] = PL_solve_for_PIDamp(fitParams_higher,Z_target);
-    %                 end
-    %
-    %                 [Z_conc, set_N2_flow] = PL_solve_for_conc(pidAn.odors(io).concPlot.fitParams(iv,:),P_target,pidAn.odors(io).vialConc(iv));
-    %
-    %                 if set_N2_flow<5 || set_N2_flow>110
-    %                     err_msg = sprintf('The stimulus cannot be reached by adjusting flow rates.\nThe vial concentrations may have drifted. Make new dilutions.');
-    %                     warning(err_msg)
-    %                 end
-    %
-    %                 vials(iv).vialConc = pidAn.odors(io).vialConc(iv);
-    %                 vials(iv).N2_flow = set_N2_flow;
-    %                 vials(iv).derived_conc = Z_conc;
-    %                 vials(iv).matched_PID_amp = P_target;
-    %                 vials(iv).PL_fit_params = pidAn.odors(io).concPlot.fitParams(iv,:);
-    %
-    %                 fprintf('vial: %4.6f\n  set N2:air flows to: %i:%i\n',pidAn.odors(io).vialConc(iv),set_N2_flow,1000-set_N2_flow)
-    %             end
-    %
-    %             calResult(io).odor = strtrim(pidAn.odors(io).odor{1});
-    %             calResult(io).vials = vials;
-    %
-    %             figure(6+2*io); hold on
-    %             loglog([vials.derived_conc],[vials.matched_PID_amp],'.:','MarkerSize',60,'Color',[0.8 0 0.8])
-    %
-    %             %         flow_results(N_tr,io) = set_N2_flow;
-    %
-    %         end
-
-% next is t-test, to take into account std of traces
-
 
 
 
@@ -351,7 +264,7 @@ function [odors]=pid_all_series(trPid)
 %odor
 % all the concentrations, all the liquid concentrations, all the
 % dillutions
-
+global lost_trials
 %list of odors
 odorList=unique({trPid.odor});
 
@@ -361,6 +274,7 @@ for io=1:numel(odorList)
 %          if strncmp('mineral_oil',odorList(io),6)  %only perform analyses on odor stimuli
 %              continue
 %          end
+    lost_trials = [];
     if any(strncmpi('mineral_oil',odorList,6)) %find N2 trials
         trialsMO = find(strcmp(odorList(strncmpi('mineral_oil',odorList,6)),{trPid.odor}));
         trPidMO  = trPid(trialsMO);
@@ -377,6 +291,7 @@ for io=1:numel(odorList)
     odors(io).vialConc = sort(unique([trPid(trials).vialConc]),2,'descend');
     odors(io).dillution= unique([trPid(trials).dillution]);
     odors(io).concPlot = pid_multi_graph( trPid, odors(io).odor, odors(io).odorConc, odors(io).vialConc, odors(io).dillution, trPidMO);
+    odors(io).lost_trials = lost_trials;
     
     %if there are more than 1 vials with the same liquid dilution,
     %calculate their effective dilution (relative to highest conc).
@@ -428,6 +343,8 @@ function [concPlot]=pid_multi_graph (pidStruct,odor,odorConc,vialConc,dillution,
 %   PID_graph.m.
 %
 %   Written by CW, 29 August 2013.
+
+% global suppressPlots
 
 PID_timeseries = [];
 std_timeseries =[];
@@ -483,7 +400,7 @@ for di=1:numel(dillution)
                 try
                     [PID_ts_i,std_ts_i,amplitude_i,amp_distribution_i] = pid_graph(pidStruct,odor,odorConc(oC),vialConc(vC),dillution(di),MO_pidStruct,1);
                 catch
-                    warning('UNSUCCESSFUL RUN OF  *pid_graph*  FOR A STIMULUS')
+                    error('UNSUCCESSFUL RUN OF  *pid_graph*  FOR A STIMULUS')
                     aaa=234;
                 end
                 
@@ -527,11 +444,10 @@ ampFit = nan(size(amplitude));
 fitParams= nan(length(vialConc),2);
 conc_colors = [];
 vial_colors = flipud(hsv(numel(vialConc)));
-% shades = repmat(linspace(0.45,1,size(PID_timeseries,2)/numel(vialConc))',1,3);
 for vC = 1:length(vialConc)
     shades = repmat(linspace(0.45,1,nstim(vC))',1,3);
     conc_colors = [conc_colors; repmat(vial_colors(vC,:),nstim(vC),1).*shades];
-    if all(isnan(amplitude(vC,:)))
+    if sum(~isnan(amplitude(vC,:)))<3
         continue
     else
         goodAmps =  find(~isnan(amplitude(vC,:)));
@@ -540,19 +456,19 @@ for vC = 1:length(vialConc)
     end
 end
 
+% if ~suppressPlots
 figure; hold on
 plot([1:length(PID_timeseries)]-500,PID_timeseries-1.*std_timeseries,'Color',[0.75 0.75 0.75],'LineWidth',4)
 plot([1:length(PID_timeseries)]-500,PID_timeseries+1.*std_timeseries,'Color',[0.85 0.85 0.85],'LineWidth',4)
 pp = zeros(1,size(PID_timeseries,2));
 for ip = 1:size(PID_timeseries,2)
-% for ip = 8
     pp(ip) = plot([1:length(PID_timeseries)]-500,PID_timeseries(:,ip),'LineWidth',4,'Color',conc_colors(ip,:));
 end
 legend(pp,leg,'Location','best')
 ylabel ('PID amplitude (mV)')
 xlabel ('time (ms)')
 title(odorName)
-set(gca,'FontSize',20)
+% set(gca,'FontSize',20)
 hold off
 
 figure; 
@@ -567,6 +483,7 @@ title(odorName)
 xlim([min(odorConc)/10 1])
 % loglog((odorConc),amplitudeFit,'k.-')
 hold off
+% end
 
 % figure;
 % plot(odorConc,amplitude,'d:','MarkerSize',12,'LineWidth',2)
@@ -576,6 +493,7 @@ hold off
 % title(odorName)
 % hold on
 % plot((odorConc),ampFit,'k--')
+
 
 
 concPlot.leg   = leg2;
@@ -634,14 +552,16 @@ function [ avg_pid_ts, std_ts, mean_timeaveraged_amplitude, amplitude ] = pid_gr
 %   This relies on the timing set by pid_test_protocol_0001.py. Changes to
 %   these parameters requires modification to the averaging windows.
 %
-%   Written by CW, 29 August 2013; modified by zk Dec 03, 2013.
+%   Written by CW, 29 August 2013; modified by zk Dec 03, 2013
+%   modified by kp
 
 if nargin<6
     suppress_graphs=0;
 end
 len = numel(pidStruct);
 
-global N_tr
+global N_tr lost_trials
+N_tr=[];
 
 
 % calculate the vial concentration if it doesn't exist within the structure.
@@ -660,6 +580,7 @@ tr_index = find(tr_selected);
 %remove the trials with bad streams
 missingStreams = arrayfun(@(x) sum([x.sniff]==0),pidStruct(tr_index));
 badTrials = arrayfun(@(x) sum([x.sniff]==0)>350,pidStruct(tr_index));
+lost_trials(1,end+1) = sum(badTrials); lost_trials(2,end) = numel(tr_index);
 tr_index(badTrials)=[];
 
 if sum(tr_index)<1
@@ -671,12 +592,13 @@ if sum(tr_index)<1
     return
 end
 
+
 %%%%%%%%%
 % Pick N random trials - part of testing procedure to find fewest number of
 % datapoints/trials to get solid estimates
-% if N_tr<20
-%     tr_index = datasample(tr_index,N_tr);
-% end
+if ~isempty(N_tr) %bootstrapping
+    tr_index = datasample(tr_index,min(N_tr,numel(tr_index)),'Replace',false);
+end
 
 
 %%%%%%%%%
@@ -713,8 +635,12 @@ end
 % Repeat procedure for N2 signal recording
 if ~isempty(MO_pidStruct) && vialConc~=1
     MO_tr_index = 1:numel(MO_pidStruct);
-    badTrials = arrayfun(@(x) sum([x.sniff]==0)>30,MO_pidStruct); %remove the trials with bad streams
+    badTrials = arrayfun(@(x) sum([x.sniff]==0)>300,MO_pidStruct); %remove the trials with bad streams
     MO_tr_index(badTrials)=[];
+    
+    if ~isempty(N_tr) %bootstrapping
+        MO_tr_index = datasample(MO_tr_index,min(N_tr,numel(MO_tr_index)),'Replace',false);
+    end
     
     numtrials = numel(MO_tr_index);
     MO_pid_traces = zeros(length(MO_pidStruct(1).sniff),numtrials);
@@ -732,14 +658,30 @@ if ~isempty(MO_pidStruct) && vialConc~=1
         baseline_avg = median(MO_pid_traces(baselineTimes,kt)) * ones(size(MO_pid_traces(:,kt)));
         MO_pid_traces(:,kt) = MO_pid_traces(:,kt) - baseLineExtended';
     end
+    
+    % remove outlier trials
+    % Remove outliers by bin, not overall mean amp (just for plotting)
+    pidMO_traces_binned=[];
+    for itr = 1:size(MO_pid_traces,2)
+        pidMO_traces_binned(:,itr) = mean(reshape(MO_pid_traces(:,itr)',100,size(MO_pid_traces,1)/100),1);
+    end
+    amp_binned = mean(pidMO_traces_binned,2);
+    deviation_binned = std(pidMO_traces_binned,0,2);
+    %
+    % threshold = amp_binned + 2.5.* deviation_binned;
+    % pid_traces_binned - repmat(threshold,1,size(pid_traces_binned,2))
+    
+    [ms,tr] = find(abs(pidMO_traces_binned - repmat(amp_binned,1,size(pidMO_traces_binned,2)))>2.5*repmat(deviation_binned,1,size(pidMO_traces_binned,2)));
+    % if ~isempty(ms)
+%     outlier_trials = [];
+%     outlier_trials = unique(tr((50+100.*ms)>min(measureSegment)&(50+100.*ms)<max(measureSegment)));
+%     presz = size(pid_traces,2);
+    MO_pid_traces(:,unique(tr)) = [];
+    
+    
     average_MO_PIDtrace = mean(MO_pid_traces,2);
 end
-
-% figure; hold on
-% for itr = 1:size(pid_traces,2)
-%     plot(pid_traces(:,7),'r')
-%     pause(0.3)
-% end
+tr=[];
 
 if ~suppress_graphs
     titlestr = sprintf('PID for %s, [theo] = %0.1d, from [liquid] = %0.1d, extra dil 1:%d', ...
@@ -759,8 +701,7 @@ if ~suppress_graphs
     zlabel('Trial number');
     x_on_line = [2500,4000];
     y_on_line = [0,0];
-    annotation('line',x_on_line,y_on_line)
-    
+    annotation('line',x_on_line,y_on_line) 
 end
 
 % find the amplitude of the PID signal, find outliers and remove them.
@@ -771,36 +712,65 @@ endSegment     = pidStruct(tr_index(1)).fvOnTime + pidStruct(tr_index(1)).fvdur 
 measureSegment = double(pidStruct(tr_index(1)).fvOnTime) + (500 : min(endSegment,size(pid_traces,1)));
 % measureSegment = double(pidStruct(tr_index(1)).fvOnTime) + (500 : min(2500,size(pid_traces,1)));
 
+% titlestr = sprintf('conc = %2.5g, from vial = %2.5g', odorConc,vialConc);
+% figure; hold on
+% surf(pid_traces)
+% colormap hot
+% xlim([1 size(pid_traces,2)])
+% title(titlestr,'FontSize',20)
 
+
+% Subtract the avg mineral oil PID signal
 if ~isempty(MO_pidStruct) && vialConc~=1
-% if ~isempty(MO_pidStruct)
     pid_traces = pid_traces - average_MO_PIDtrace*ones(1,size(pid_traces,2));
-%     plot(pid_traces,'r')
-%     hold off
 end
 
-amplitude = mean(pid_traces(measureSegment,:));  % assumes that the baseline is 0
-deviation = std(amplitude);
-pid_traces = pid_traces(:,(abs(amplitude- mean(amplitude))<deviation*2));  % remove outlier trials
-amplitude = amplitude(abs(amplitude- mean(amplitude))<deviation*2);
-deviation = std(amplitude);
+% if strncmp(odor,'2-hydroxyac',6)
+%     titlestr = sprintf('%s, conc = %0.5g, from vial = %0.5g', odor{1},double(odorConc),double(vialConc));
+%     figure; hold on
+%     plot(pid_traces,'k')
+% %     plot(pid_traces(:,outlier_trs),'r')
+%     % plot(pid_traces_binned,'b')
+%     title(titlestr)
+% end
+
+
 
 % Remove outliers by bin, not overall mean amp (just for plotting)
+pid_traces_binned=[];
 for itr = 1:size(pid_traces,2)
-    pid_traces_binned(:,itr) = sum(reshape(pid_traces(:,itr),size(pid_traces,1)/10,10),2);
+    pid_traces_binned(:,itr) = mean(reshape(pid_traces(:,itr)',100,size(pid_traces,1)/100),1);
 end
 amp_binned = mean(pid_traces_binned,2);
 deviation_binned = std(pid_traces_binned,0,2);
-outlier_trs = any(abs(pid_traces_binned - repmat(amp_binned,1,size(pid_traces_binned,2)))>3*repmat(deviation_binned,1,size(pid_traces_binned,2)));
+
+[ms,tr] = find(abs(pid_traces_binned - repmat(amp_binned,1,size(pid_traces_binned,2)))>2.5*repmat(deviation_binned,1,size(pid_traces_binned,2)));
+outlier_trials = [];
+outlier_trials = unique(tr((50+100.*ms)>min(measureSegment)&(50+100.*ms)<max(measureSegment)));
+presz = size(pid_traces,2);
+pid_traces(:,outlier_trials) = [];
 
 
-% titlestr = sprintf('%s, conc = %0.5g, from vial = %0.5g', odor{1},double(odorConc),double(vialConc));
-% figure; hold on
-% plot(pid_traces,'k')
-% plot(pid_traces(:,outlier_trs),'r')
-% % plot(pid_traces_binned,'b')
-% title(titlestr)
-% hold off
+amplitude = mean(pid_traces(measureSegment,:));  % assumes that the baseline is 0
+deviation = std(amplitude);
+
+
+% if strncmp(odor,'2-hydroxyac',6) && abs(double(odorConc)-0.000030855)<1e-9
+%     avg_pid_pre_MOsubtr = mean(pid_traces,2);
+%     
+%     figure(9); clf; hold on
+%     plot(avg_pid_pre_MOsubtr(1:5200),'r','LineWidth',5)
+%     plot(average_MO_PIDtrace(1:5200),'Color',[0.5 0.5 0.5],'LineWidth',5)
+%     
+% end
+
+% if strncmp(odor,'2-hydroxyac',6) && abs(double(odorConc)-0.00051)<1e-9
+%     figure(1); clf; hold on
+%     plot(pid_traces,'k')
+%     plot(1:100:100*length(pid_traces_binned),amp_binned+2.5.*deviation_binned,'r')
+% end
+
+
 
 mean_timeaveraged_amplitude = mean(amplitude);
 
@@ -812,8 +782,8 @@ if ~isempty(pid_ts(pid_ts==0))
     aaa=234;
 end
 
-avg_pid_ts = mean(pid_ts(~outlier_trs,:),1);
-std_ts  = std(pid_ts(~outlier_trs,:));
+avg_pid_ts = mean(pid_ts,1);
+std_ts  = std(pid_ts);
 high_pid_ts = avg_pid_ts + abs(std_ts);
 low_pid_ts = avg_pid_ts - abs(std_ts);
 

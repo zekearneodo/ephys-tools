@@ -60,6 +60,7 @@ pp.trial_prep     = @trial_prep;
 pp.basicVoyerRead = @basicVoyerRead;
 
 pp.read_analog_channel = @read_analog_channel;
+pp.write_analog_channel = @write_analog_channel;
 
 pp.plot_neural_data = @plot_neural_data;
 
@@ -73,7 +74,7 @@ end
 if nargin>1 && ~isempty(mouse) && ~isempty(sess)
     read_info(mouse, sess);
     ss_prep(mouse, sess);
-    klusta_par_make(mouse,sess);
+    klusta_par_make(mouse,sess); % now ss_prep decides wether to make xml fle or prm
     %xml_make(mouse,sess); % now ss_prep decides wether to make xml fle or prm
     %file
     resampling(mouse, sess)
@@ -1295,6 +1296,12 @@ fseek(fid, 2*(ich-1), 'bof');
 Y = fread(fid, inf, 'int16', (nch-1)*2);
 end
 
+function write_analog_channel(X, fid, offset, kch, nch)
+fseek(fid, (offset*nch+kch-1)*2, 'bof');
+fwrite(fid, X(1), 'int16');
+fwrite(fid, X(2:end), 'int16', (nch-1)*2);
+end
+
 function fig = plot_neural_data(data,plot_range)
 % plot a segment of a multi channel data with channels as columns (npoints,nchans);
 [points, chans] = size(data);
@@ -1312,9 +1319,9 @@ fig=figure;
 plot(data(plot_range(1):plot_range(2),:))
 end
 
-function [spikes] = detect_spikes(data, par)
+function [spikes] = detect_spikes(data, par,quiet)
 %detect supra_threshold activity in any channels of a channel group
-fprintf('Getting spike candidates\n');
+
 %params (named by default as in klustasuite rc1:
 % nexcerpts = 50
 % excerpt_size = int(1*sample_rate) 1 second
@@ -1323,6 +1330,14 @@ fprintf('Getting spike candidates\n');
 % detect_spikes = 'negative'
 % 
 
+% if verbose is off turn off warning of findpeaks:
+if nargin < 3 || isempty(quiet) || ~strcmpi('quiet',quiet)
+    verbose = 1;
+    fprintf('Getting spike candidates\n');
+else
+    verbose = 0;
+    s = warning('off','signal:findpeaks:largeMinPeakHeight');
+end
 %get the standard deviations of the channels
 [samples, channels] = size(data);
 
@@ -1346,15 +1361,16 @@ hi_thresh = sd * par.threshold_weak_std_factor;
 %look for events in all channels
 
 for ch=1:channels
-    fprintf('Channel %d/%d ...',ch,channels);
+    if verbose
+        fprintf('Channel %d/%d ...\n',ch,channels);
+    end
     [pks, locs] = findpeaks(data(:,ch),'MinPeakHeight',lo_thresh(ch));
     spikes{ch} = locs;
-    fprintf(' done\n');
 end
 
 end
 
-function data = pca_denoise_chunk(data, par)
+function data_clean = pca_denoise_chunk(data, par)
 % apply pca denoise to a chunk of a file
 % data = chunk of a data matrix (columns are channels)
 % par  = spike detection parameters
@@ -1384,12 +1400,16 @@ end
 %get the spike candidates and replace the supra-trheshold events by the
 %common noise component
 %get spikes in the cleaned matrix
-spikes = detect_spikes(data_clean,par);
+spikes = detect_spikes(data_clean,par,'quiet');
 %replace spikes with noise data in a copy of the raw data
 data_nospikes=data;
 for ich = 1:n_chans
+%     disp(ich)
     events     = spikes{ich};
     ev_select  = cell2mat(arrayfun(@(x) (x-par.extract_s_before):(x+par.extract_s_before),events,'UniformOutput',false));
+    ev_select  = reshape(ev_select',[],1);
+    ev_select(ev_select<1)=[];
+    ev_select(ev_select>length(data_nospikes))=[];
     data_nospikes(ev_select,ich) = data_noise(ev_select,ich);
 end
 
