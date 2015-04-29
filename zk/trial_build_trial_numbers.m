@@ -7,9 +7,11 @@ function trial=trial_build_trial_numbers(V,rec,irun)
 %i is the number of the run
 %V is read and trials are created in the trial structure which is returned)
 trial = struct();
+mouse=V.trial(1).mouse;
+sess=V.trial(1).session;
 ds = data_structure_tools;
-[rec_info, run_info] = get_info(mouse,sess,rec,irun);
-s_f = rec_info.sampling_freq;
+%[rec_info, run_info] = ds.get_info(mouse,sess,rec_name,irun);
+s_f = rec.sampling_freq;
 
 
 %determine whether it is the newer or the older version of the
@@ -23,10 +25,9 @@ end
 
 %check if there is a trial correction function to be applied in the
 %raw_data folder of the mouse
-mouse=V.trial(1).mouse;
-sess=V.trial(1).session;
+
 sess_str = sprintf('%03d',V.trial(1).session);
-fn=file_names(mouse,sess,rec);
+fn=file_names(mouse,sess,rec.name);
 trCFname=fullfile(fn.fold_rd_sess,sprintf('trialCorrect_%s_%s.m',mouse,sess_str));
 if exist(trCFname)
     fprintf('Found trial correction function %s\n',trCFname);
@@ -49,25 +50,26 @@ end
             t_events  = cellfun(@(x) [x 'Times'],events,'UniformOutput',false);
         end
         %get all the events and the good trial numbers for this run
-        [trial_numbers, events_list] = ds.make_tables(mouse,sess,rec,irun);
+        [trial_numbers, events_list] = ds.make_tables(mouse,sess,rec.name,irun);
         tn_table = trial_numbers.table;
         odor_events = events_list( find(strcmpi('finalValve_1',{events_list.name}))).table.trials;
         laser_events = events_list( find(strcmpi('laser_1',{events_list.name}))).table.trials;
         for kt = 1:numel(tn_table.trialNumber)
             trial_number = tn_table.trialNumber(kt);
-            it = find([v.trialNumber]==trial_number);
+            it = find([V.trial.trialNumber]==trial_number);
             if ~(numel(it)==1)
-                error('Wrong number of trials with number %d\n',trial_number);
+                warning('Wrong number of trials with number %d\n',trial_number);
+                continue
             end
             t  = V.trial(it);
             t0_voyeur = t.starttrial;
-            t0 = round(tn_table.trialStart*1000/s_f);
+            t0 = round(tn_table.trialStart(kt)*1000/s_f);
             tr(kt).rec           = rec.name;
             tr(kt).run           = irun;
             tr(kt).runTrialNum   = trial_number;
             tr(kt).runTrialStart = t0;
             tr(kt).recTrialStart = t0+runStart; %trial start from the beginning of the rec (no!!; not all runs begin counting from 0)
-            tr(kt).runTrialDur   = round(tn_table.trialEnd*1000/s_f) - t0;
+            tr(kt).runTrialDur   = round(tn_table.trialEnd(kt)*1000/s_f) - t0;
             
             tr(kt).start      = t0+runStart;  % it's the same as recTrialStart
             tr(kt).duration   = tr(kt).runTrialDur; 
@@ -114,12 +116,12 @@ end
             iti_check       = 1;
             
             if ~isempty(lt)
-                iti_check = (t.trialIti==laser_events(lt).trialIti);
+                iti_check = (t.iti==laser_events(lt).trialIti);
                 amplitude_check = (laser_events(lt).laserAmplitude_1==t.amplitude_1);
                 
                 if iti_check && amplitude_check
                     tr(kt).laserAmp   = t.amplitude_1;
-                    tr(kt).laserPower = t.laserIntensity_1;
+                    tr(kt).laserPower = t.LaserIntensity_1;
                     tr(kt).laserTimes = round([laser_events(lt).on;laser_events(lt).off]*1000/s_f) - t0*[1;1];
                     
                 else

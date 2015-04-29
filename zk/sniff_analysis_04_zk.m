@@ -350,8 +350,8 @@ global sa
     scale = 1./pos_fig([3,4,3,4]);
 
     set_param(pos_fig(4)-100, 'ampl', 30000);
-    set_param(pos_fig(4)-150, 'upper_thr', 5000);
-    set_param(pos_fig(4)-200, 'lower_thr', -5000);
+    set_param(pos_fig(4)-150, 'upper_thr', 500);
+    set_param(pos_fig(4)-200, 'lower_thr', -500);
     set_param(pos_fig(4)-250, 'hist_bin',  16);
     set_param(pos_fig(4)-300, 'lp_filt',   20);
     set_param(pos_fig(4)-350, 'hp_filt',   0.2);
@@ -396,6 +396,7 @@ global sa
     init_add_spikes()
     init_add_stim_state()
     init_save_waveforms()
+    init_the_whole_thing()
     
 
     % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -892,6 +893,30 @@ global sa
     end
 
 
+    % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    function init_the_whole_thing()
+        create_fcn('the_whole_thing', 'comp', @comp, 'the whole thing')
+        set(sa.fcn.the_whole_thing.comp_menu, 'Separator', 'on')
+        
+        function comp(~,~)
+            refresh()
+            sa.fcn.filt_data.comp();
+            sa.fcn.subtract_dc.comp();
+            sa.fcn.invert.comp()
+            sa.fcn.filt_data.draw();
+            sa.fcn.hist.draw();
+            sa.fcn.hist_max.draw();
+            sa.fcn.parab_fit.comp();
+            
+            sa.fcn.waveforms.draw();
+            sa.fcn.parab_fit.draw();
+
+            disp(['save waveforms to ' sa.fn.sniff_waveforms])
+            sniff = sa.data.sniff;
+            save(sa.fn.sniff_waveforms, 'sniff')
+        end
+    end
+
 
     % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     function create_fcn(name, varargin)
@@ -932,6 +957,7 @@ global sa
         set(sa.fcn.(name).comp_menu, 'Checked', 'on')
 
     end
+
 
 
 

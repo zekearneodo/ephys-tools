@@ -26,8 +26,8 @@ classdef klustapar < handle
         %spike detection
         nexcerpts = 50;
         excerpt_size_sec = 1.;
-        threshold_strong_std_factor = 3.;
-        threshold_weak_std_factor = 1.75;
+        threshold_strong_std_factor = 4.5;
+        threshold_weak_std_factor = 2.5;
         weight_power = 2.;
         detect_spikes = 'negative';
         
@@ -66,7 +66,8 @@ classdef klustapar < handle
         KK_UseMaskedInitialConditions = 1;
         KK_AssignToFirstClosestMask = 1;
         KK_UseDistributional = 1;
-        KK_RamLimitGB = 120;
+        
+        KK_RamLimitGB = 180;
         
         % compute all the values that depend on other parameters
         filter_high = 0
