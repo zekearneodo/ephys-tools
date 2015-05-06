@@ -1020,7 +1020,7 @@ function spikes_to_trials(mouse, sess, varargin)
 inPar=inputParser;
 inPar.addRequired('mouse')
 inPar.addRequired('sess')
-inPar.addParamValue('newSpikes',false,@islogical);
+inPar.addParameter('newSpikes',false,@islogical);
 inPar.addOptional('rec','',@(x)iscell(x) || (ischar(x) && ~any(strcmpi(x,inPar.Parameters))) );
 inPar.parse(mouse,sess, varargin{:});
 
@@ -1047,7 +1047,7 @@ global trial
         fprintf('rec %s\n ================\n', reclist{ir})
         if inPar.Results.newSpikes
             wrap_message(sprintf('Making spikes structures from sorting files'),'*');
-            afta_da_sortin_10_zk(mouse,sess,rec);
+            afta_da_sortin(mouse,sess,reclist{ir});
         end
         fn = file_names(mouse, sess, reclist{ir});
         q = load(fn.trial);

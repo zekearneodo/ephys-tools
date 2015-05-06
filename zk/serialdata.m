@@ -249,7 +249,11 @@ classdef serialdata < handle
             
             %get blocks of at least wordLength consecutive:
             % gets starts of chunks between timeOuts
-            chunkStarts = find(diff(consecutive)==1)-1;
+            % if there is only one chunk, there is only one candidate for
+            % valid word
+            if numel(consecutive)>1
+                chunkStarts = find(diff(consecutive)==1)-1;
+
             % if the last block is shorter, dont count it
             if chunkStarts(end) > numel(consecutive) - obj.wordLength
                 chunkStarts(end) = [];
@@ -260,11 +264,13 @@ classdef serialdata < handle
             end
             chunkStarts(find(chunkStarts==0))=[];
             %get blocks of at least wordLength consecutive:
-            wordStarts = [];
+            wordStarts = []; %indexes of bytes where words start
             for iChunk = 1: numel(chunkStarts)
                 wordStarts = [wordStarts parse_chunk(chunkStarts(iChunk):chunkEnds(iChunk),obj.wordLength)];
             end
-            
+            else
+                wordStarts = 1;
+            end
             % got all the wordStarts
             % each wordStart is the timeStamp fo the beginning of a byte
             % now get those words.

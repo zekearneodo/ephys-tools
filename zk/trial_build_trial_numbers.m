@@ -13,6 +13,10 @@ ds = data_structure_tools;
 %[rec_info, run_info] = ds.get_info(mouse,sess,rec_name,irun);
 s_f = rec.sampling_freq;
 
+%quick and dirty correct case in mouse:
+if strcmpi('zkawakem72',mouse)
+    mouse = 'ZKawakeM72';
+end
 
 %determine whether it is the newer or the older version of the
 %Voyeur protocol (the newer version uses Chris's pulsetrain)
@@ -41,6 +45,7 @@ end
 %%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%%
     function tr = trial_build(tr)
         %written for the Feb 2014 protocols of acute1 rig.
+        fprintf('Making the trial structures..\n')
         n_tr   = numel(V.trial);
         runStart  = rec.run(irun).start;
         v_events =[];
