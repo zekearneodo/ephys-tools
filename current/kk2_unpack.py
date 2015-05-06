@@ -4,7 +4,7 @@ import sys
 import os.path
 import tables
 import numpy as np
-
+import xml.etree.ElementTree as et
 
 def unpack_kk2(kwik_path, kwx_path, output_dir):
     """
@@ -17,10 +17,13 @@ def unpack_kk2(kwik_path, kwx_path, output_dir):
 
     filenamebase = os.path.splitext(os.path.split(kwik_path)[1])[0]
     output_base_path = os.path.join(output_dir, filenamebase)  # output filename without extension.
+    kwik_base_path = os.path.split(kwik_path)[0]
     kwik = tables.open_file(kwik_path, mode='r')
     kwx = tables.open_file(kwx_path, mode='r')
     res_dict = {}
-    filtered_h5_path = os.path.join(output_dir, filenamebase) + '.high.kwd'
+    filtered_h5_path  = os.path.join(kwik_base_path, filenamebase) + '.high.kwd'
+    xml_file_path     = os.path.join(kwik_base_path, filenamebase) + '.xml'
+    xml_alt_file_path = os.path.join(output_dir, filenamebase) + '.xml'
     
     for group in kwik.root.channel_groups:
         grp_num = int(group._v_name) + 1  # old system expects that shanks start at 1, not 0.
@@ -51,6 +54,8 @@ def unpack_kk2(kwik_path, kwx_path, output_dir):
         spk_array = group.waveforms_filtered.read()  # (spikes, samples, channels)
         # spk_array = spk_array.transpose(0,2,1)  # need (spikes, channels, samples) UPDATE: NO!!!
         spk_array.tofile(spk_out_path)
+        # get the number of samples per waveform (to be used for correcting xml file)
+        spk_n_samples = spk_array.shape[1]
 
         # Handle fet.
         fet_node = group.features_masks
@@ -90,6 +95,37 @@ def unpack_kk2(kwik_path, kwx_path, output_dir):
         filtered_h5.close()
     else:
         print 'Hi-pass filtered file not found, skipping .fil file creation'
+
+    # CORRECT THE .XML FILES
+    # if it doesnt exist skip this part
+    for file_path in [xml_file_path, xml_alt_file_path]:
+
+        if os.path.isfile(file_path):
+            tree = et.parse(file_path)
+            root = tree.getroot()
+            # for the description used by klusters
+            for child in root.iter('spikeDetection'):
+                #print child.tag, child.attrib
+                for ns in child.iter('nSamples'):
+                    ns.text = str(spk_n_samples)
+                    #print ns.tag, ns.text
+                for ps in child.iter('peakSampleIndex'):
+                    ps.text = str(int(round(spk_n_samples/2)))
+                    #print ps.tag, ps.text
+
+            # for the description used by neuroscope
+            for child in root.iter('spikeDetection'):
+                #print child.tag, child.attrib
+                for ns in child.iter('nSamples'):
+                    ns.text = str(spk_n_samples)
+                    #print ns.tag, ns.text
+                for ps in child.iter('peakSampleIndex'):
+                    ps.text = str(int(round(spk_n_samples/2)))
+                    #print ps.tag, ps.text
+            tree.write(file_path)
+        else:
+            print 'xml file not found, skipping ' + file_path + ' file creation'
+
 
 if __name__ == "__main__":
     args = sys.argv[1:]

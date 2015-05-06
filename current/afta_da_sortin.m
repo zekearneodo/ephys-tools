@@ -19,7 +19,7 @@
 % the channel names from the info file in function get_units(igroup).
 
 
-function afta_da_sortin_10_zk(mouse, sess, rec)
+function afta_da_sortin(mouse, sess, rec)
 global as
 
 as.read_clu_info = @read_read_clu_info;
@@ -66,7 +66,7 @@ function make_spk_files(mouse,sess,rec)
     
     fprintf('Writing cluster info file %s\n',fn.clInfo_file);
     save(fn.clInfo_file,'-struct','clInfoNew');
-    fprintf('>>> Done  making spike mat files for mouse %s session %s \n\n',mouse,sess);
+    fprintf('>>> Done  making spike mat files for mouse %s session %d \n\n',mouse,sess);
     
 end
 
@@ -112,7 +112,12 @@ for ig=1:clInfoRec.nGroup
     else
         iGroup=ig;
     end
-    load_spikes(iGroup)
+    try
+        load_spikes(iGroup)
+    catch
+        warning('Could not get spike files for group %d',iGroup);
+        continue
+    end
     get_units(iGroup)
 end
 clInfoRec.unit=unit;
@@ -146,13 +151,13 @@ fprintf('--- Done getting spikes for rec %s\n\n',rec);
             fprintf('\t ** Assuming all non-deleted spikes are good single units\n');
             qlt=defaultMask*ones(clu(1),1);
         else
-            qlt=load(qltFn)
-            clu(1)
+            qlt=load(qltFn);
+            clu(1);
             if isempty(qlt) || length(qlt)~=clInfoRec.group(igroup).nClu;
                 error(['Spike quality description file does not match number of clusters for group ' num2str(igroup)])
             end
        end
-        disp(qlt)
+        disp(qlt);
         clInfoRec.group(igroup).qltMasks=qlt;
         
         if ~exist(resFn, 'file')
@@ -296,7 +301,7 @@ for irec=1:numel(info.rec)
     clInfo.rec(irec).chanMap=info.rec(irec).chan;
 end
 save(fn.clInfo_file,'-struct','clInfo');
-fprintf('\n--- Clu info for mouse %s, session %s read.\n',mouse,sess);
+fprintf('\n--- Clu info for mouse %s, session %d read.\n',mouse,sess);
 end
 
 function [clInfo] = read_xml_file(xml_file_path)

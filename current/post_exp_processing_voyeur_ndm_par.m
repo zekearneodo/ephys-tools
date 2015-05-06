@@ -754,7 +754,7 @@ for iRec=recs
     parameters.anatomicalDescription.channelGroups.group=aDgroup;
     %SpikeDetection
     props={'nSamples','peakSampleIndex','nFeatures'};
-    sDPars=[32,16,3];
+    sDPars=[20,10,3];
     aDS=aDgroup([chGroupInfo.sortable]==1);
     for ig=1:numel(aDS)
         sG(ig).channels=aDS(ig);

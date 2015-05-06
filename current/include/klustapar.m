@@ -26,8 +26,8 @@ classdef klustapar < handle
         %spike detection
         nexcerpts = 50;
         excerpt_size_sec = 1.;
-        threshold_strong_std_factor = 4.5;
-        threshold_weak_std_factor = 2.5;
+        threshold_strong_std_factor = 6.5;
+        threshold_weak_std_factor = 3.5;
         weight_power = 2.;
         detect_spikes = 'negative';
         
@@ -47,10 +47,10 @@ classdef klustapar < handle
         %%%%%%%%%%%%%%%%%%%%%%%%%
         % KlustaKwik parameters %
         %%%%%%%%%%%%%%%%%%%%%%%%%
-        KK_MaskStarts = 500;
+        KK_MaskStarts = 300;
         KK_MinClusters = 100
         KK_MaxClusters = 110
-        KK_MaxPossibleClusters =  1000;
+        KK_MaxPossibleClusters =  300;
         KK_FullStepEvery =  10;
         KK_MaxIter = 10000;
         KK_RandomSeed =  654;
@@ -67,7 +67,7 @@ classdef klustapar < handle
         KK_AssignToFirstClosestMask = 1;
         KK_UseDistributional = 1;
         
-        KK_RamLimitGB = 180;
+        KK_RamLimitGB = 80;
         
         % compute all the values that depend on other parameters
         filter_high = 0
