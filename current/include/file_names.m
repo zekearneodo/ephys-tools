@@ -50,7 +50,8 @@ switch strtrim(computerName)
     case 'kristina-macpro.ersp.nyumc.org';
         local_disk = '/Volumes/spikefolder';
     case 'kristinikissmbp.vz30.nyumc.org';
-        local_disk = '/Users/kpenikis/Documents/Rinberg/Experiment';
+%         local_disk = '/Users/kpenikis/Documents/Rinberg/Experiment';
+        local_disk = '/Volumes/spikefolder';
     otherwise
         %assume any other with the server mounted
         local_disk = '/Volumes/spikefolder';

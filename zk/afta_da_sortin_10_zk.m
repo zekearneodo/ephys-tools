@@ -115,7 +115,7 @@ for ig=1:clInfoRec.nGroup
         iGroup=ig;
     end
     load_spikes(iGroup)
-    get_units(iGroup)
+    get_sunits(iGroup)
 end
 clInfoRec.unit=unit;
 clInfoRec.unitFn=fn.spikes;

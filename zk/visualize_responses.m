@@ -139,9 +139,9 @@ function vd=make_stimuli_set(vp)
 tr = vp.tr;
 
 vp.stimTypes={'laser','odor'};
-if isfield(vp.tr,'VoyeurParameters') || ~isempty([vp.tr.laserPower])
+if isfield(vp.tr,'pulseOnsetDelay')
     vp.tr_type = 3;
-    vp.par = {'odorName', 'odorConc', 'laserDur', 'laserPower'}
+    vp.par = {'odorName', 'odorConc', 'laserDur', 'laserPower', 'pulseOnsetDelay'}
 elseif isfield(vp.tr,'pulseOffset')
     vp.tr_type = 2;                        % just KPawakeM72_004
     vp.par = {'odorName', 'odorConc', 'laserDur', 'laserPower', 'pulseGroup','pulseOffset'}
@@ -149,7 +149,6 @@ else
     vp.tr_type = 1;                        % old sessions
     vp.par = {'odorName', 'odorConc', 'laserDur', 'laserAmp'}
 end
-
 
 for it=1:numel(vp.stimTypes)
     sType=vp.stimTypes{it};
@@ -162,7 +161,7 @@ switch vp.tr_type
     case 2
         stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserPower', 0, 'in_tr', [], 'pulseOffset', [],'pulseGroup',[], 'stim_str', '','odorInfo', {});
     case 3
-        stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserPower', 0, 'in_tr', [], 'stim_str', '','odorInfo', {});
+        stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserPower', 0, 'in_tr', [], 'pulseOnsetDelay', [], 'stim_str', '','odorInfo', {});
 end
 
 
@@ -204,11 +203,7 @@ for it = 1:numel(tr)
         ks = ks + 1;
         same_stim = strcmp(tr(it).odorName, stim(ks).odorName);
         for ip = 2:numel(par)
-            try
-                same_stim = same_stim & (tr(it).(par{ip}) == stim(ks).(par{ip}));
-            catch
-                same_stim = same_stim & strcmp(tr(it).(par{ip}),stim(ks).(par{ip}));
-            end
+            same_stim = same_stim & (tr(it).(par{ip}) == stim(ks).(par{ip}));
         end
         
         if same_stim
@@ -518,7 +513,7 @@ end
             case (stim(ks).odorConc>0) && ~(stim(ks).laserDur>0)
                 stim_str = sprintf('%s \n %1.1e', stim(ks).odorName(1:min(length(stim(ks).odorName),10)), stim(ks).odorConc);
             case ~(stim(ks).odorConc>0) && (stim(ks).laserDur>0)
-                stim_str = sprintf('Laser: \n%i -%3.1fms', stim(ks).laserPower, stim(ks).laserDur);
+                stim_str = sprintf('Laser: \n%2.1fmW -%3.1fms', stim(ks).laserAmp, stim(ks).laserDur);
             case (stim(ks).odorConc>0) && (stim(ks).laserDur>0)
                 stim_str = sprintf('Odor+Laser: %s \n %2.1fmV -%3.1fms',stim(ks).odorName(1:min(length(stim(ks).odorName),10)),stim(ks).laserAmp, stim(ks).laserDur);
         end

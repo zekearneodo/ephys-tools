@@ -391,7 +391,7 @@ end
                 tr(kt).laserTimes=zeros(size(tr(kt).laserTimes));
             end
             tr(kt).laserAmp   = t.amplitude_1;
-            tr(kt).laserPower = [];
+            tr(kt).laserPower = t.LaserIntensity_1;
             
             tr(kt).stimID     = t.stimid;
             
