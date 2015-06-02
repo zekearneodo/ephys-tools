@@ -10,18 +10,20 @@
 function [cn, cellsArray]= cells_neil(doit)
 global cn
 
-    cn.units_meta    = @units_meta;
-    cn.just_a_raster = @just_a_raster;
-    cn.make_rasters  = @make_rasters;
+    cn.units_meta      = @units_meta;
+    cn.just_a_raster   = @just_a_raster;
+    cn.just_a_baseline = @just_a_baseline;
+    cn.make_rasters    = @make_rasters;
     
     cn.assemble_baseline_trial_tructure = @assemble_baseline_trial_tructure;
+    cn.assemble_baseline_trial_tructure_zk = @assemble_baseline_trial_tructure_zk;
     cn.assemble_baseline = @assemble_baseline;
     
     if nargin>0 && doit==1
         ffn=file_names();
         % load all cells in a cell structure
-        mice = {'ZKawakeM72','KPawakeM72'};
-        %mice = {'ZKawakeM72'};
+        %mice = {'ZKawakeM72','KPawakeM72'};
+        mice = {'ZKawakeM72'};
         %load all the cells into an array of cells
         disp(wrap_message('Getting cells and trial structures for Neil','*'));
         cellsArray = [];
@@ -33,7 +35,7 @@ global cn
         end
         
         %filter the cells by session (knowing when the experiments begun)
-        keepCells =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>3) | (strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>5);
+        keepCells =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>3 & [cellsArray.sess]<30) | (strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>5);
         
         cellsArray(~keepCells)=[];
         cellsArray(~([cellsArray.quality]==1))=[];
@@ -45,6 +47,8 @@ global cn
         % - find them in all the recs they appear in
         % - make the raster for every rec
         % - append it to the cell's structure
+        cellsArray(~([cellsArray.light]==1))=[];
+        cellsArray(~(strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]<20))=[];
         make_rasters(cellsArray);
         % run kristina's script to make the cell baselines for all the
         % cells selected
@@ -96,7 +100,7 @@ for im=1:numel(mice)
             save(fn.exp_trial,'trial');
             %do the trial structure for the baseline (using kristina's
             %program)
-            trialsBase = assemble_baseline_trial_tructure(mouse,sess,rec)
+            trialsBase = assemble_baseline_trial_tructure_zk(mouse,sess,rec);
             save(fullfile(fn.fold_exp_data,'data_Neil',sprintf('%strialsBase.mat',fn.basename_an)), 'trialsBase')
             %get all the units in the rec
             recCells = sessCells(strcmpi(rec,{sessCells.rec}));
@@ -137,6 +141,7 @@ for ic = 1:numel(cells_uId)
     if isempty(raster)
         continue
     end
+    spikesBase = arrayfun(@(x) just_a_baseline(x.mouse,x.sess,x.rec,x.sessCell),this_cell_instances);
     %data for the unit
     %quick check for screw ups in following the cell through recs
     %if the cell is litral its litral in all recs
@@ -155,6 +160,10 @@ for ic = 1:numel(cells_uId)
     fn=file_names(one_cell.mouse,one_cell.sess);
     cellFn=fullfile(fn.fold_exp_data,sprintf('%s_cell.mat',one_cell.uid));
     save(cellFn,'-struct','one_cell');
+    
+    %save the baseline
+    baseFn = fullfile(fn.fold_exp_data,sprintf('%s_spikesBase.mat',one_cell.uid));
+    save(baseFn,'spikesBase');
 end
 
 end
@@ -257,12 +266,83 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
     
 end
 
-function [base] = just_a_baseline(mouse,sess,rec,unitSessNumber)
+function [raster] = just_a_baseline(mouse,sess,rec,unitSessNumber)
 %%% Script for creating big raster of all the trials for a cell for neil,
 %%% using the trial structure from export_data
 %returns one raster for one particular rec in which the cell appears.
 %unitId is the unit identifier trhough the session.
+fprintf('Making baseline for unit %s_%03d_%03d_%s\n',mouse,sess,unitSessNumber,rec)
+fn = file_names(mouse,sess,rec);
 
+trial = assemble_baseline_trial_tructure_zk(mouse,sess,rec);
+load(fn.exp_spikes);
+
+%meta data
+load(fullfile(fn.fold_exp_data,'unitsmeta.mat'));
+%look up the cell
+cellsOfRec =cellsArray( find( strcmpi(mouse,{cellsArray.mouse}) & strcmpi(rec,{cellsArray.rec}) & [cellsArray.sess]==sess));
+thisCell = cellsOfRec([cellsOfRec.sessCell]==unitSessNumber);
+unitNumber = find(strcmpi(thisCell.uId,{cellsOfRec.uId})); %number of cell amongst the cells of the rec
+thisUnit = unit(unitNumber);
+
+
+%the trials in exp are already refined (output of neil_trial_structure)
+%get that trial structure and go trial by trial adding rows to the big
+%raster
+t1 = 0;
+t2 = 450;
+
+nt=numel(trial);
+if nt<1
+    raster = [];
+    return
+end
+
+trialId = {trial.trialUId};
+tVec = (t1:t2);
+spikes = zeros(nt,length(tVec));
+t0Vec = nan(1,numel(trial));
+sp = round(thisUnit.times);
+
+x    = zeros(1e5,1);    y    = zeros(1e5,1);
+nsp = 0;
+
+for it = 1:nt
+    t0 = trial(it).start;
+    
+    spikeTimes = sp((sp>t0+t1)&(sp<t0+t2))-t0;
+    t0Vec(it) = t0;
+    
+    % compact raster
+    n=numel(spikeTimes);
+    x(nsp+(1:n)) = spikeTimes(:);
+    y(nsp+(1:n)) = it*ones(1,n);
+    nsp = nsp + n;
+    if n>0
+        spikes(it,spikeTimes-t1) = 1;
+    end
+end
+x = x(1:nsp);
+y = y(1:nsp);
+
+%     figure
+%     plot(x,y,'.','MarkerSize',7);
+%
+%%%%%%%%%%%%%%%
+% Add cellId?  mouse_sess_rec_int --> int=unique integer of cell
+%                                         in session from unitDb
+raster.cellId  = thisCell.Id;
+raster.spikes  = spikes;
+raster.trialId = trialId;
+raster.mouse   = mouse;
+raster.sess    = sess;
+raster.rec     = rec;
+raster.uid     = thisCell.uId;
+raster.t0      = t0Vec;
+
+%for quick debugging of rasters
+%raster.x = x;
+%raster.y = y;
 
 end
 
@@ -344,6 +424,90 @@ end
 end
 
 %Kristina's functions to do the baselines:
+function [trialsBase] = assemble_baseline_trial_tructure_zk(mouse,sess,rec)
+fn=file_names(mouse,sess,rec);
+% load trial structure
+q = load(fn.trial);
+trial=q.trial; clear q;
+
+% load sniffs
+q = load(fn.sniffs);
+sniff = q.sniff;
+
+q = load(fn.rsm_data);
+SniffTrace = q.Sniff;
+
+% get Fvpin on
+%fv.name   = 'finalValve';
+%fv.type   = 'digital';
+%fv.chanId = 'fvPin';
+%fv.events = get_analog_events(fv.chanId,mouse,sess,rec,run,'figures','noplot');
+
+%%clean up trials for sessions < 20 (before serial trial number was used)
+badTrials=arrayfun(@(x) isempty(trial(x).start),1:numel(trial));
+if any(badTrials)
+    warning('Some bad trials found in the rec (start was empty)');
+end
+trial(badTrials)=[];
+
+%FVpin = q.FVpin;
+%clear q;
+%finalValves on/off times:
+fvOnTimes = [[trial.odorTimes]' [trial.start]'];
+fvOnTimes(fvOnTimes(:,1)==0,:)=[];
+fvOnTimes(:,1)=fvOnTimes(:,3)+fvOnTimes(:,1);
+fvOnTimes(:,2)=fvOnTimes(:,3)+fvOnTimes(:,2);
+
+laserOnTimes = [[trial.laserTimes]' [trial.start]'];
+laserOnTimes(laserOnTimes(:,1)==0,:)=[];
+laserOnTimes(:,1)=laserOnTimes(:,3)+laserOnTimes(:,1);
+laserOnTimes(:,2)=laserOnTimes(:,3)+laserOnTimes(:,2);
+
+trialsBase = [];
+badSniffs = 0;
+%get all the sniffs that are not within an open valve
+for is=1:numel(sniff)
+    sn=sniff(is);
+    t_inh = sn.t0+sn.t_zer(1);
+    t1= 0;
+    t2= 450;
+    %check if it is within a fv open
+    prev_fv_on = find(fvOnTimes(:,1) < t_inh,1,'first');
+    prev_laser_on = find(laserOnTimes(:,1) < t_inh,1,'first');
+    % there is no prev fv opening
+    % or the prev fv opening already ended 
+    if ( isempty(prev_fv_on) || t_inh > (fvOnTimes(prev_fv_on,2)+2000) )&& ( isempty(prev_laser_on) || t_inh > (laserOnTimes(prev_laser_on,2)+2000) )
+        % is a sniff not within a stimulus
+        sn_zeros = sn.t_zer - (150+t1);
+        tr.start = t_inh +t1;
+        if any(sn_zeros(2:3)<1) || (t_inh + t2) > numel(SniffTrace)
+            %warning('problem with sniff zeros at sn.t0 %d',sn.t0)
+            badSniffs = badSniffs+1;
+            continue
+        end
+        tr.trialUId = [fn.basename_an 'trial' num2str(tr.start)];
+        tr.sniffFlow = SniffTrace(tr.start:t_inh+t2);
+        tr.sniffPhase = ones(size(tr.sniffFlow));
+        tr.sniffPhase(1:-t1)=-1;
+        tr.sniffPhase(sn_zeros(2):sn_zeros(3)) = -1;
+        trialsBase = [trialsBase tr];
+        %for debugging
+%         figure
+%         plot(-SniffTrace(tr.start:(tr.start+1000)));
+%         hold on
+%         plot(-tr.sniffFlow,'r');
+%         plot(sn_zeros,[0 0 0],'b*');
+%         plot(tr.sniffPhase*100);
+    end
+end
+if badSniffs>0
+    warning('%d problems with sniff zeros',badSniffs);
+end
+fprintf('(%d sniffs)\n', numel(trialsBase)); 
+save(fullfile(fn.base_folder,'data_Neil',sprintf('%strialsBase.mat',fn.basename_an)), 'trialsBase');
+
+end
+
 function [trialsBase] = assemble_baseline_trial_tructure(mouse,sess,rec)
 fn=file_names(mouse,sess,rec);
 % load trial structure
