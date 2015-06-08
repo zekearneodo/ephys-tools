@@ -36,7 +36,7 @@ class file_names:
         ##go through the kwargs for options
         #for instance, check if configFile or computerName were entered
 
-        self.root=file_structure.get_root(root)
+        self.root = file_structure.get_root(in_root=root)
 
         self.get_sess_file_names(sess)
         self.get_rec_file_names(rec)
@@ -90,7 +90,6 @@ class file_names:
             self.fold_an_sess  = path.join(self.fold_an_mouse,'sess_{0}'.format(self.sess_str))
             self.basename_an   = '{0}_{1}_{2}_'.format(self.mouse,self.sess_str,rec)
             self.exp_spikes    = path.join(self.fold_exp_data,'{0}_{1}_{2}_spikes.mat'.format(self.mouse,self.sess_str,rec))
-            self.exp_trial     = path.join(self.fold_exp_data,'{0}_{1}_{2}_trial.mat'.format(self.mouse,self.sess_str,rec))
 
         return
 
