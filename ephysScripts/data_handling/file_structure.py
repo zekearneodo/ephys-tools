@@ -8,10 +8,10 @@ import numpy as np
 
 
 
-def get_root(self,config_file='',computer_name='',root=''):
+def get_root(config_file='',computer_name='',in_root=''):
    #if no root was entered
    #do something like checking computer
-    if root=='' and config_file == '' and computer_name == '':
+    if in_root=='' and config_file == '' and computer_name == '':
         sysName=socket.gethostname()
         if sysName == 'flipper':
             experimentFolderFile=path.join('/usr/local/kluster/config','experiment_folder')
@@ -21,8 +21,8 @@ def get_root(self,config_file='',computer_name='',root=''):
             out_root=myfile.read().replace('\n', '')
 
     #if root was entered, set the root
-    if root:
-        out_root=root
+    if in_root:
+        out_root=in_root
     return out_root
 
 

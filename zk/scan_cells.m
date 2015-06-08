@@ -89,7 +89,7 @@ save(fullfile(rasters_folder,['litralsResp_' observable '.m']),'obs');
 colors={'r','b'};
 close all
 
-io=2;
+io=1;
 cv=obs(io).concVector;
 cm=obs(io).obsMatrix;
 h(io)=figure();
@@ -106,7 +106,7 @@ for i=1:numel(cm(:,1))
 end
 ylabel(sh(io),sprintf('%s','cell'));
 xlabel(sh(io),obs(io).obs);
-set(sh(io),'XLim',[0 250])
+set(sh(io),'XLim',[0 400])
 set(sh(io),'YLim',[0 numel(cm(:,1))+1])
 figName = sprintf('%s_conc_%s',obs(io).obs,obs(io).odor);
 print(h(io), '-dpdf', fullfile(rasters_folder,[figName '.pdf']))
