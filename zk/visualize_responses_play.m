@@ -4,8 +4,8 @@
 % leaves global vp with the parameters for all the functions to call
 %has functions:
 % -find_stimuli_set
-
-function vr = visualize_responses_new(mouse,sess,rec,unit,sType)
+% to play and get to a cell passport
+function vr = visualize_responses_play(mouse,sess,rec,unit,sType)
 global vp vd dm;  
 
 %add the package of common files and folders to the path.
@@ -420,6 +420,7 @@ avgRateBase = mean(rateBase)*1000; %units is Hz
 
 %% Now, for each stimulus find spikes in analysis window for each trial
 %  Store data for raster (x,y) and histogram (rate, reshaped)
+fg = figure();
 
 for ks = 1:numel(stim)
     %if its odor trial the response window is the average duration of first
@@ -567,7 +568,6 @@ for ks = 1:numel(stim)
     avg_nSpks = mean([ISI(:).nSpks]);
     avg_ISI = mean([ISI(isfinite([ISI(:).avgISI])).avgISI]);
     
-    
     vd.resp(ks).rateBase        = rateBase;
     vd.resp(ks).spkCountBase    = spkCountBase;
     vd.resp(ks).nSpikesBase     = nSpikesBase;
@@ -583,14 +583,22 @@ for ks = 1:numel(stim)
     vd.resp(ks).latencyISI      = latency;
     vd.resp(ks).jitterISI       = jitter;
     vd.resp(ks).nSpksISI        = avg_nSpks;
-    vd.resp(ks).respavgISI      = avg_ISI;
-    vd.resp(ks).stim            = stim(ks);
+    vd.resp(ks).respavgISI      = avg_ISI; 
     vd.resp(ks).vp              = vp;
-    vd.resp(ks).raster.x        = x;
-    vd.resp(ks).raster.y        = y;
     vd.resp(ks).inhLenghts      = inhLengthsStim;
     vd.resp(ks).inhLenghtsBase  = inhLenBase;
+    
+    vd.resp(ks).stim            = stim(ks);
+    % variables and parameters for plotting raster
+    vd.resp(ks).rateBaseHist    = rateBaseHist;
+    vd.resp(ks).raster.x        = x;
+    vd.resp(ks).raster.y        = y;
+    vd.resp(ks).rate            = rate;
+    vd.resp(ks).t               = t;
+    vd.resp(ks).fg              = fg;
+    vd.resp(ks).sType           = sType;
     %%%
+    
     
     %plots this psth
     ip = ip + 1;
