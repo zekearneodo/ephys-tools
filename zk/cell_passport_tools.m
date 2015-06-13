@@ -262,7 +262,7 @@ function geometry = make_frame_geometry(one_stim)
  odors=[odors odor];
  
  odor.alias = {'ethyl-tiglate','ethyl_tiglate','ethyl tiglate'};
- odor.concs = [1.3e-5, nan, nan];
+ odor.concs = [1.3e-5, 1.3e-4, nan];
  odors=[odors odor];
  
  odor.alias = {'4-methyl_acetophenone','4-methylacetophenone'};
@@ -308,6 +308,8 @@ end
 function sniffs_dist = make_sniffs_dist(sniffs,bin)
 %make the distribuition of sniffs
 %sniffs: array of sniffs structures
+len_range = [0, 1000];
+len_axis  = len_range(1):len_range(2);
 
 inh_lengths = nan(1, numel(sniffs));
 exh_lengths = nan(1, numel(sniffs));
@@ -317,8 +319,11 @@ for i=1:numel(sniffs)
     exh_lengths(i) = sniffs(i).t_zer(3)-round(sniffs(i).t_zer_fit(2));
 end
 
-sniffs_dist.inh = decimate(inh_lengths, bin);
-sniffs_dist.exh = decimate(exh_lengths, bin);
+inh_count = arrayfun(@(x) sum(inh_lengths==x), len_axis);
+exh_count = arrayfun(@(x) sum(exh_lengths==x), len_axis);
+
+sniffs_dist.inh = decimate(inh_count, bin);
+sniffs_dist.exh = decimate(exh_count, bin);
 
 end
 
@@ -349,7 +354,7 @@ for is=1:numel(sniff)
     prev_trial_on = find([trial.start]< t_inh,1,'last');
     % there is no prev trial
     % or the prev trial ended more than 5 secs ago
-    if ( isempty(prev_trial_on) || t_inh > (trial(prev_trial_on).start + trial(prev_trial_on).duration + 5000));
+    if ( isempty(prev_trial_on) | t_inh > (trial(prev_trial_on).start + trial(prev_trial_on).runTrialDur + 5000));
         no_stim_sniffs(is) = 1;
     end
     

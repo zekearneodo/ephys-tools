@@ -30,7 +30,7 @@ if nargin < 5
 end
 
 if nargin >1
-dm = data_management_tools_031();
+%dm = data_management_tools_031();
 vp = visual_par_init(mouse,sess,rec,sType);
 vd = make_stimuli_set(vp);
 
@@ -280,6 +280,7 @@ global vd vp;
 stim=vd.stim(vd.(sType).list);
 sSort=vd.(sType).sort;
 cp = cell_passport_tools();
+responseWindowDefault = 100;
 
 if isnumeric(stim(1).(sSort))
     [~, in_sort] = sort(-[stim.(sSort)]);
