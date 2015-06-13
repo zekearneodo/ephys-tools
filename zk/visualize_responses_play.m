@@ -5,7 +5,7 @@
 %has functions:
 % -find_stimuli_set
 % to play and get to a cell passport
-function vr = visualize_responses_play(mouse,sess,rec,unit,sType)
+function [vr, passport] = visualize_responses_play(passport, mouse,sess,rec,unit,sType)
 global vp vd dm;  
 
 %add the package of common files and folders to the path.
@@ -24,8 +24,6 @@ vr.visual_par_init     = @visual_par_init;
 vr.make_stimuli_set    = @make_stimuli_set;
 vr.view_rasters        = @view_rasters;
 vr.view_lfp            = @view_lfp;
-% pp.ss_prep        = @ss_prep;
-% pp.resampling     = @resampling;
 
 if nargin < 5
     sType='laser'
@@ -39,7 +37,7 @@ vd = make_stimuli_set(vp);
 %if it goes withs spikes, do the raster visualization
 %otherwies, we'll see.
 if ~vp.surface && ~isempty(unit)
-    view_rasters(sType,unit);
+    passport = view_rasters(passport, sType,unit);
 end
 end
 
@@ -276,11 +274,12 @@ odorInfo(1).vialId    = [voPar.vial];
 
 end
 
-function view_rasters(sType,un)
+function passport = view_rasters(passport, sType,un)
 global vd vp;
 
 stim=vd.stim(vd.(sType).list);
 sSort=vd.(sType).sort;
+cp = cell_passport_tools();
 
 if isnumeric(stim(1).(sSort))
     [~, in_sort] = sort(-[stim.(sSort)]);
@@ -320,9 +319,6 @@ rmax = 100;
 %   Plot raster and psth for defined units
 %  =======================================================================
 
-ifigRas=12;
-ifigPsth=22;
-gf = figure(ifigRas); clf
 ip = 0;
 tr=vp.tr;
 t1=vp.t1;
@@ -395,23 +391,6 @@ for kt = 1:numel(tr)
 end
 rateBase=rateBase/(nb); %divide by number of "trials"
 
-%figure; hold on
-%subplot(2,1,1)
-%cdfplot(inhLenBase)
-%xrange=0:300;
-%title('no odor inhale duration')
-%subplot(2,1,2)
-%cdfplot(inhLenStim)
-%xrange=0:300;
-%title('first inhale duration')
-%hold off
-
-%if it is an odor trial, set the vp.responseWindow to the average duration
-%of the first sniff
-
-
-% spkBaseline = (1000/(0-t1))*sum(rateBase([t1:t2]<0))/nb;
-%kp's accounting for spikes in the baseline
 
 rateBaseHist = sum(reshape(rateBase, bin, nt/bin),1)/(bin/1000); %units is Hz
 avgRateBase = mean(rateBase)*1000; %units is Hz
@@ -420,7 +399,9 @@ avgRateBase = mean(rateBase)*1000; %units is Hz
 
 %% Now, for each stimulus find spikes in analysis window for each trial
 %  Store data for raster (x,y) and histogram (rate, reshaped)
-fg = figure();
+response_frames = [];
+
+fr_cap = 0; %the maximum f.rate of all the histograms (for plotting normalized)
 
 for ks = 1:numel(stim)
     %if its odor trial the response window is the average duration of first
@@ -458,8 +439,12 @@ for ks = 1:numel(stim)
     spkCount=[];
     for it = [stim(ks).in_tr]
         %get the spikeTimes for all the units
+        try
         sp = sort(round(vertcat(tr(it).spikeTimes{un})));
-        
+        catch me
+            disp(it)
+            continue
+        end
         %if its odor align with sniff, otherwise align with laser
         %presentation
         if stim(ks).odorConc >0 && strcmp(sType,'odor')
@@ -568,6 +553,8 @@ for ks = 1:numel(stim)
     avg_nSpks = mean([ISI(:).nSpks]);
     avg_ISI = mean([ISI(isfinite([ISI(:).avgISI])).avgISI]);
     
+    fr_cap = max(fr_cap, max(rate));
+    
     vd.resp(ks).rateBase        = rateBase;
     vd.resp(ks).spkCountBase    = spkCountBase;
     vd.resp(ks).nSpikesBase     = nSpikesBase;
@@ -584,76 +571,56 @@ for ks = 1:numel(stim)
     vd.resp(ks).jitterISI       = jitter;
     vd.resp(ks).nSpksISI        = avg_nSpks;
     vd.resp(ks).respavgISI      = avg_ISI; 
-    vd.resp(ks).vp              = vp;
     vd.resp(ks).inhLenghts      = inhLengthsStim;
     vd.resp(ks).inhLenghtsBase  = inhLenBase;
-    
+    %
     vd.resp(ks).stim            = stim(ks);
+    %
     % variables and parameters for plotting raster
     vd.resp(ks).rateBaseHist    = rateBaseHist;
     vd.resp(ks).raster.x        = x;
     vd.resp(ks).raster.y        = y;
     vd.resp(ks).rate            = rate;
     vd.resp(ks).t               = t;
-    vd.resp(ks).fg              = fg;
+    vd.resp(ks).fg              = passport.fig;
     vd.resp(ks).sType           = sType;
+    vd.resp(ks).vp              = vp;
     %%%
-    
-    
-    %plots this psth
-    ip = ip + 1;
-    gf = figure(ifigRas)
-    gs = subplot(2,numel(stim), ip);
-    yt  = max([1, floor(kt/10)*10]);
-    plot(x,y, '.', 'MarkerSize',7), hold on
-    plot([0,0], [0, kt+1], '--k'), hold off
-    set(gs, 'XLim', [t1, t2], ...
-        'YLim',      [0, kt+1], ...
-        'YTick',     [0, yt], ...
-        'XTick',     [-200,0,200], ...
-        'FontSize',  10);
-    title(stim_str, 'FontSize', 10, 'FontWeight', 'bold')
-    
-    
-    gs = subplot(2,numel(stim), ip+numel(stim));
-    plot(t, rate, ...
-        'LineWidth', 1, ...
-        'Color',     stim(ks).lineColor, ...
-        'LineStyle', stim(ks).lineStyle),
-    hold on
-    %plot(t,ones(size(t))*baseline,'.k')
-    %plot(t,ones(size(t))*pkThresh,'b')
-    if strcmp(sType,'odor')
-        plot(t,rateBaseHist,'LineStyle','--','Color',[.5,0.5,0.5])
-    end
-    plot(pkTime,pkRate,'k*')
-    plot([0,0], [0, rmax], '--k'), hold off
-    set(gs, 'XLim',     [t1, t2], ...
-        'XTick',         [-200,0,200], ...
-        'YLim',          [0, rmax], ...
-        'YTick',         0:20:rmax, ...
-        'FontSize',      10);
-    
-    %plots of psths altogether
-    if ks>1
-        figure(ifigPsth)
-        gs0 = subplot(1,1,1);
-        plot(t, rate, ...
-            'LineWidth', 2, ...
-            'Color',     stim(ks).lineColor, ...
-            'LineStyle', stim(ks).lineStyle),
-        hold on
-    end
-    
-    
 end
 
-gf = figure(ifigRas)
+%now do all the plots:
+if strcmp(sType,'odor')
+    %if its odor response, do all the odors
+    for ks=1:numel(vd.resp)
+        vd.resp(ks).rmax = fr_cap;
+        %plots this psth and raster
+        vd.resp(ks).plot           =  cp.plot_response(vd.resp(ks));
+    end
+else
+%else get the best laser response
+    % shortest latency?
+    % highest peak?
+    [~, best] = max([vd.resp(:).maxFR]);
+    vd.resp(best).rmax = fr_cap;
+    vd.resp(best).plot = cp.plot_response(vd.resp(best));
+end
+
+
+%now:
+  %make a title for the figure (cell identifier)
+  %go trhough the response frames and normalize the frequency axes for the
+  %psth
+  %save the figure
+
+
 sUnits=num2str(un(1));
 for iu=2:numel(un)
     sUnits=sprintf('%s,%2d',sUnits,un(iu));
 end
-suptitle(sprintf('Mouse %s - session %3d - rec %s units %s',num2str(vp.mouse),str2num(vp.sess),vp.rec,sUnits));
+
+
+
+
 %saves the response data (the plot and the response structure)
 if ~exist(fn.fold_an_mouse, 'dir')
     mkdir(fn.fold_an_mouse)
@@ -665,137 +632,6 @@ end
 fileBase=[fn.basename_an sType '_units'];
 for iu=1:numel(un)
     fileBase=[fileBase num2str(un(iu),'%02d')]
-end
-
-save(fullfile(fn.fold_an_sess,sprintf('%s_resp.mat',fileBase)), '-struct', 'vd','resp')
-print(gf,'-depsc',fullfile(fullfile(fn.fold_an_sess,sprintf('%s_resp.eps',fileBase))))
-
-
-if ks>1
-    figure(ifigPsth)
-    gs0 = subplot(1,1,1);
-    subplot(gs0)
-    plot([0,0], [0, rmax], '--k'), hold off
-    set(gs0, 'XLim',     [t1, t2], ...
-        'XTick',         -200:100:200, ...
-        'YLim',          [0, rmax], ...
-        'YTick',         0:20:rmax, ...
-        'FontSize',      10);
-end
-end
-
-function view_lfp(sType,chan,trialsPlot)
-%views the trace of one channel, for firstTrials trials.
-%if chan is a string, it is the channel name
-%if chan is a number, it is the number of channel in the fn.rsm_data struct
-%array.
-
-global vd vp;
-close all;
-ip = 0;
-tr=vp.tr;
-t1=-300;
-t2=500;
-nt=vp.nt;
-fn=vp.fn;
-
-if ~exist('trialsPlot','var') || isempty('firstTrials')
-    trialsPlot=1:9;
-    numTrials=numel(trialsPlot);
-end
-
-tPlot=zeros(trialsPlot,2);
-tVec=(t1:t2);
-
-%get the list of channels
-chanList=whos('-file',vp.fn.rsm_data);
-
-%decide which channel to work on
-if isnumeric(chan)
-    %it is the number of channel
-    chanNumber=chan;
-elseif ~isempty(str2num(chan))
-    %it is the number of channel but in string format
-    chanNumber=str2num(chan);
-else
-    %it is the name of the channel
-    chanNumber=find(strcmpi(chan,{chanList.name}));
-end
-   
-%get the channel
-theChan=load(vp.fn.rsm_data,'-mat',chanList(chanNumber).name);
-chanData=theChan.(chanList(chanNumber).name);
-
-%get the sniff
-% snifNumber=find(strcmpi('sniff',{chanList.name}));
-% theChan=load(vp.fn.rsm_data,'-mat',chanList(snifNumber).name);
-% snifData=theChan.(chanList(snifNumber).name);
-
-stim=vd.stim(vd.(sType).list);
-ns=numel(stim);
-sSort=vd.(sType).sort;
-
-if isnumeric(stim(1).(sSort))
-    [~, in_sort] = sort(-[stim.(sSort)]);
-else
-    [~, in_sort] = sort({stim.(sSort)});
-end
-stim = stim(in_sort)
-
-ns=numel(stim);
-
-for i=1:ns
-    stim(i).lineColor = 'r';
-end
-
-for ks = 1:numel(stim)
-    kt   = 0;
-    
-    ifigLfp=figure(ks);
-    gf = figure(ks); clf
-    stim_str = sprintf('%s %1.1e - Ch %s', ...
-        tr(stim(ks).in_tr(1)).odorName(1:min(length(tr(stim(ks).in_tr(1)).odorName),10)),...
-        tr(stim(ks).in_tr(1)).odorConc,...
-        chanList(chanNumber).name);
-    
-    
-    trialsToPlot=trialsPlot(trialsPlot<=numel(stim(ks).in_tr));
-    numTrials=numel(stim(ks).in_tr(trialsToPlot));
-    cols=ceil(sqrt(numTrials));
-    isp=0;
-    
-    for it = stim(ks).in_tr(trialsToPlot)
-        %if its odor align with sniff, otherwise align with laser
-        %presentation
-        if stim(ks).odorConc >0 & strcmp(sType,'odor')
-            %find first sniff after final valve open
-            ii = find(tr(it).sniffZeroTimes(1,:)>tr(it).odorTimes(1),1);
-            if isempty(ii) | ii<1
-                continue
-            end
-            t0 = tr(it).sniffZeroTimes(1,ii);
-            
-        else
-            t0 = tr(it).laserTimes(1);
-            stim_str = sprintf('Laser: \n%2.1fV -%3.1fms', stim(ks).laserAmp/1000, stim(ks).laserDur);
-        end
-        kt = kt + 1;
-        
-        
-%         sp = sp(t0+t1)-t0;
-        tPlot(it,:)=[t1 t2]+t0*0+tr(it).start;
-        
-        %plots this chunk
-        isp=isp+1;
-        gs = subplot(cols,cols,isp);
-        yt  = max([1, floor(kt/10)*10]);
-        plot(tVec,chanData(tPlot(it,1):tPlot(it,2)), 'MarkerSize',7), hold on
-        plot([0,0], [0, kt+1], '--k'), hold off
-        set(gs, 'XLim', [t1, t2], ...
-            'XTick',     [-200,0,200], ...
-            'FontSize',  10);
-    end
-        suptitle(stim_str)
 end
 
 end
