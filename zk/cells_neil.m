@@ -35,8 +35,8 @@ global cn
         end
         
         %filter the cells by session (knowing when the experiments begun)
-        keepCells =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>14 & [cellsArray.sess]< 28)...
-            | (strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17);
+        keepCells =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>14 & [cellsArray.sess]< 28 ...
+            | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17);
         
         cellsArray(~keepCells)=[];
         cellsArray(~([cellsArray.quality]==1))=[];
