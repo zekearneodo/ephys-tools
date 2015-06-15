@@ -36,6 +36,8 @@ def usage():
 def main(argv):
     #get the list of arguments and options
     #options go first, the remainders are the arguments
+    token = 'DQAAAAoBAABJhip4hNt50a-qYQ-lERsQtWuG0vgR66DVPx_bmd2WGCPLjbb7Pu-ED8KWJBVWnlejwanKTiZ4bmYsxjVibf87CzWQeLqXQs8-GirUFBKg4O2SuyvbgfGuvr02s_WHx4l6odrivE6Udcc6tet1mxZd9h84UPsVRle1TqaYX5ZB63xMgcc9uhg8zGwJIjpTuEY3sb3R1IDJHY0dSdrfCpvIboETH0vWQpxbSwmN6ziWzZcrd78JP1IUFuyhTweLT72o1xzUCoKYPa4x_Q6yFYy6c5WvGzE-gzq57GoSfm22c4iDaGP5qyenVh_cIkIQkNLNsy8LF30qqQoQ04UvAjtj8Smcj8P3vbfkRPMk5cZgMg'
+
     try:
         opts, args = getopt.getopt(argv, 'r:ch', ['rec=', 'clean', 'help'])
     except getopt.GetoptError:
@@ -72,9 +74,7 @@ def main(argv):
     if action is 'get':
         print 'getting the units for mouse ' + str(mouse) 
         gd_client=gss.SpreadsheetsService()
-        gd_client.email='rinberglab@gmail.com'
-        gd_client.password='time2Smell'
-        gd_client.ProgrammaticLogin()
+        gd_client.SetClientLoginToken(token)
 
         unitProps={
             #'name': (type, columnHeader)
