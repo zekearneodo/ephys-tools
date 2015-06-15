@@ -22,8 +22,8 @@ global cn
     if nargin>0 && doit==1
         ffn=file_names();
         % load all cells in a cell structure
-        %mice = {'ZKawakeM72','KPawakeM72'};
-        mice = {'ZKawakeM72'};
+        mice = {'ZKawakeM72','KPawakeM72'};
+        %mice = {'ZKawakeM72'};
         %load all the cells into an array of cells
         disp(wrap_message('Getting cells and trial structures for Neil','*'));
         cellsArray = [];
@@ -35,10 +35,12 @@ global cn
         end
         
         %filter the cells by session (knowing when the experiments begun)
-        keepCells =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>3 & [cellsArray.sess]<30) | (strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>5);
+        keepCells =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>14 & [cellsArray.sess]< 28)...
+            | (strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17);
         
         cellsArray(~keepCells)=[];
         cellsArray(~([cellsArray.quality]==1))=[];
+        %cellsArray(~([cellsArray.light]==1))=[];
         % now you got an array of cells for the suffixes
         %with the cells selected, make all the units and place them ein the
         %export_data folder
@@ -47,8 +49,8 @@ global cn
         % - find them in all the recs they appear in
         % - make the raster for every rec
         % - append it to the cell's structure
-        cellsArray(~([cellsArray.light]==1))=[];
-        cellsArray(~(strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]<20))=[];
+        
+        %cellsArray(~(strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]<20))=[];
         make_rasters(cellsArray);
         % run kristina's script to make the cell baselines for all the
         % cells selected
@@ -100,8 +102,8 @@ for im=1:numel(mice)
             save(fn.exp_trial,'trial');
             %do the trial structure for the baseline (using kristina's
             %program)
-            trialsBase = assemble_baseline_trial_tructure_zk(mouse,sess,rec);
-            save(fullfile(fn.fold_exp_data,'data_Neil',sprintf('%strialsBase.mat',fn.basename_an)), 'trialsBase')
+            %trialsBase = assemble_baseline_trial_tructure_zk(mouse,sess,rec);
+            %save(fullfile(fn.fold_exp_data,sprintf('%strialsBase.mat',fn.basename_an)), 'trialsBase')
             %get all the units in the rec
             recCells = sessCells(strcmpi(rec,{sessCells.rec}));
             
@@ -258,8 +260,7 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
     raster.t0      = t0Vec;
     raster.rec     = rec;
     raster.cell    = thisCell;
-    
-    
+
     %for quick debugging of rasters
     raster.x = x;
     raster.y = y;
@@ -289,8 +290,8 @@ thisUnit = unit(unitNumber);
 %the trials in exp are already refined (output of neil_trial_structure)
 %get that trial structure and go trial by trial adding rows to the big
 %raster
-t1 = 0;
-t2 = 450;
+t1 = -500;
+t2 = 2500;
 
 nt=numel(trial);
 if nt<1
@@ -360,7 +361,7 @@ rsmSniff = load(fn.rsm_data,'Sniff');
 trial(strcmpi({'none'},{trial.odorName}))=[];
 trial(strcmpi({'empty'},{trial.odorName}))=[];
 t1 = -200;
-t2 = 2500;
+t2 = 2500-1;
 
 trials = [];
 for it=1:numel(trial)
@@ -465,46 +466,57 @@ laserOnTimes(:,2)=laserOnTimes(:,3)+laserOnTimes(:,2);
 
 trialsBase = [];
 badSniffs = 0;
-%get all the sniffs that are not within an open valve
-for is=1:numel(sniff)
-    sn=sniff(is);
-    t_inh = sn.t0+sn.t_zer(1);
-    t1= 0;
-    t2= 450;
-    %check if it is within a fv open
-    prev_fv_on = find(fvOnTimes(:,1) < t_inh,1,'first');
-    prev_laser_on = find(laserOnTimes(:,1) < t_inh,1,'first');
-    % there is no prev fv opening
-    % or the prev fv opening already ended 
-    if ( isempty(prev_fv_on) || t_inh > (fvOnTimes(prev_fv_on,2)+2000) )&& ( isempty(prev_laser_on) || t_inh > (laserOnTimes(prev_laser_on,2)+2000) )
-        % is a sniff not within a stimulus
-        sn_zeros = sn.t_zer - (150+t1);
-        tr.start = t_inh +t1;
-        if any(sn_zeros(2:3)<1) || (t_inh + t2) > numel(SniffTrace)
-            %warning('problem with sniff zeros at sn.t0 %d',sn.t0)
-            badSniffs = badSniffs+1;
-            continue
-        end
-        tr.trialUId = [fn.basename_an 'trial' num2str(tr.start)];
-        tr.sniffFlow = SniffTrace(tr.start:t_inh+t2);
-        tr.sniffPhase = ones(size(tr.sniffFlow));
-        tr.sniffPhase(1:-t1)=-1;
-        tr.sniffPhase(sn_zeros(2):sn_zeros(3)) = -1;
-        trialsBase = [trialsBase tr];
-        %for debugging
-%         figure
-%         plot(-SniffTrace(tr.start:(tr.start+1000)));
-%         hold on
-%         plot(-tr.sniffFlow,'r');
-%         plot(sn_zeros,[0 0 0],'b*');
-%         plot(tr.sniffPhase*100);
+%get all the sniffs that are before an open valve
+eventOnTimes = [fvOnTimes(:,1)];
+for ifv=1:numel(eventOnTimes)
+    
+    
+    %find the sinff before a trial, light or odor
+    prev_sniff = find([sniff.t0]< eventOnTimes(ifv,1)-3000,1,'last');
+    if(isempty(prev_sniff))
+        continue
     end
+    
+    sn=sniff(prev_sniff);
+    t_inh = sn.t0+sn.t_zer(1);
+    t1= -500;
+    t2= 2500-1;
+    
+    % is a sniff not within a stimulus
+    sn_zeros = sn.t_zer - (150+t1);
+    tr.start = t_inh +t1;
+    
+    if any(sn_zeros(2:3)<1) || (t_inh + t2) > numel(SniffTrace)
+        %warning('problem with sniff zeros at sn.t0 %d',sn.t0)
+        badSniffs = badSniffs+1;
+        continue
+    end
+    tr.trialUId = [fn.basename_an 'trial' num2str(tr.start)];
+    try
+        tr.sniffFlow = SniffTrace(tr.start:t_inh+t2);
+    catch me
+        warning('sniff begins too early or ends too late for chopping the right segment around it (sniff %d)',prev_sniff);
+        continue;
+    end
+    tr.sniffPhase = ones(size(tr.sniffFlow));
+    tr.sniffPhase(1:-t1)=-1;
+    tr.sniffPhase(sn_zeros(2):sn_zeros(3)) = -1;
+    trialsBase = [trialsBase tr];
+    
+    %for debugging
+    %         figure
+    %         plot(-SniffTrace(tr.start:(tr.start+1000)));
+    %         hold on
+    %         plot(-tr.sniffFlow,'r');
+    %         plot(sn_zeros,[0 0 0],'b*');
+    %         plot(tr.sniffPhase*100);
+    
 end
 if badSniffs>0
     warning('%d problems with sniff zeros',badSniffs);
 end
 fprintf('(%d sniffs)\n', numel(trialsBase)); 
-save(fullfile(fn.base_folder,'data_Neil',sprintf('%strialsBase.mat',fn.basename_an)), 'trialsBase');
+save(fullfile(fn.fold_exp_data,sprintf('%strialsBase.mat',fn.basename_an)), 'trialsBase');
 
 end
 
