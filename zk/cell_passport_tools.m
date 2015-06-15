@@ -20,15 +20,24 @@ end
     cp.make_passport       = @make_passport;
     cp.setup_fig           = @setup_fig;
     cp.make_response_frame = @make_response_frame;
+    cp.make_info_frame     = @make_info_frame;
     cp.make_frame_geometry = @make_frame_geometry;
     
     cp.plot_light_responses    = @plot_light_responses;
     cp.plot_odor_responses     = @plot_odor_responses;
     cp.plot_sniff_distribution = @plot_sniff_distribution;
     cp.plot_unit               = @plot_unit;
+    cp.plot_info               = @plot_info;
     
     cp.get_no_stim_sniffs = @get_no_stim_sniffs;
-    cp.make_sniff_dist    = @make_sniffs_dist;
+    cp.make_sniff_dist    = @make_sniff_dist;
+    
+    cp.load_unit = @load_unit;
+    cp.load_info = @load_info;
+    
+    cp.isi_distribution = @isi_distribution;
+    
+    
     
     
     if nargin>0 && doit
@@ -39,7 +48,7 @@ end
 
 function passport = make_passport(unit_meta)
 
-
+close all
 passport = setup_fig();
 
 passport.unit_meta = unit_meta;
@@ -47,10 +56,23 @@ passport.fn        = file_names(unit_meta.mouse, unit_meta.sess, unit_meta.rec);
 
 passport = plot_odor_responses(passport);
 passport = plot_light_responses(passport);
-
-
+passport = plot_sniff_distribution(passport);
+passport = plot_unit(passport);
+passport = plot_info(passport);
 %make titles and save the figure
 suptitle(sprintf('%s',unit_meta.Id));
+
+%save it to pdf
+fn = file_names(unit_meta.mouse, unit_meta.sess, unit_meta.rec);
+fig_file_name = fullfile(fn.fold_exp_data,[unit_meta.Id '_fig.pdf']);
+set(passport.fig.fig_handle,'PaperOrientation','landscape');
+set(passport.fig.fig_handle,'PaperUnits','normalized');
+set(passport.fig.fig_handle,'PaperPosition', [0 0 1 1]);
+set(passport.fig.fig_handle,'PaperType', 'usletter');
+% set(passport.fig.fig_handle,'PaperPositionMode','auto'); 
+% set(passport.fig.fig_handle,'PaperPosition', [0 0 1 1]);
+
+print(passport.fig.fig_handle, '-dpdf',fig_file_name);
 
 end
 
@@ -59,17 +81,29 @@ function passport = setup_fig()
 %prepare the figure
 fg = figure();
 set(fg,'Position',[0 0 1600 1200])
+%set(fg,'Position',[0 0 792 612])
 set(0, 'currentfigure', fg);
 set(fg,'DefaultAxesFontSize',6)
 set(fg,'defaulttextinterpreter','none')
 
 passport.fig.fig_handle = fg;
+passport.fig.default_title_font_size = 6;
 
 passport.fig.rows = 4;
 passport.fig.cols = 7;
 %
+passport.fig.sniff.pos        = [2, 3];
+passport.fig.sniff.hist_bin   = 5;
+passport.fig.sniff.hist_t_max = 700;
+
+passport.fig.unit.pos        = [3, 3];
+passport.fig.unit.hist_bin   = 1;
+passport.fig.unit.hist_t_max = 30;
+
+passport.fig.info.pos        = [6, 3];
 
 end
+
 
 function passport = plot_odor_responses(passport)
 %plots the odor responses in the figure
@@ -94,30 +128,239 @@ end
 function passport = plot_sniff_distribution(passport)
 %plot the sniff duration distribution
 
-a_unit = passport.unit_meta;
-
-%get the sniff distribution
-
 %make the frame
+%there should be a unified function for makint the geometry
+% for now, just make a frame similar to the raster (2-split vertical), 
+% and plot the distributions in the lower, leaving the upper for other
 
-%plot ths sniff distribution
+
+dim_x = 1./passport.fig.cols;
+dim_y = 1./passport.fig.rows;
+
+pos_x = passport.fig.sniff.pos(1)*dim_x;
+pos_y = passport.fig.sniff.pos(2)*dim_y;
+
+frame = make_response_frame(pos_x, pos_y, dim_x, dim_y, passport.fig.fig_handle);
+
+
+sniffs = get_no_stim_sniffs(passport.unit_meta);
+%get the sniff distribution
+sd = make_sniff_dist(sniffs, passport.fig.sniff.hist_bin);
+
+
+%plot the raster
+t1   = 0;
+t2   = passport.fig.sniff.hist_t_max;
+sd_max = max([sd.inh sd.exh])*1.2;
+sd_legend = {'inh' 'exh'};
+title_text = 'sniff durations';
+
+% Change to new colors.
+set(frame.ax_psth, 'ColorOrder', [0 0.75 0; 0.5 0.5 0.5], 'NextPlot', 'replacechildren');
+
+%plot the distribution in the psth axis
+    plot(frame.ax_psth, sd.t, [sd.inh; sd.exh],...
+        'LineWidth', 2)
+    set(frame.ax_psth, 'NextPlot', 'add');
+    set(frame.ax_psth, ...
+        'LineWidth', 1,...
+        'XLim',      [t1, t2], ...
+        'XTick',     [t1, 100, t2-100], ...
+        'YLim',      [0, sd_max], ...
+        'YTick',     0:20:sd_max-10);
+    
+    frame.leg = legend(frame.ax_psth, sd_legend);
+    legend(frame.ax_psth,'boxoff');
+    
+%%%% 
+
+% insert the title
+title(frame.ax_psth,title_text,'FontSize', passport.fig.default_title_font_size);
+
+passport.fig.sniff.frame = frame;
 
 end
 
 function passport = plot_unit(passport)
+%plot unit:
+% iti distribuition
+% waveform (tricky, leave for later)
 
-a_unit = passport.unit_meta;
+%make the frame
+%there should be a unified function for makint the geometry
+% for now, just make a frame similar to the raster (2-split vertical), 
+% and plot the distributions in the lower, leaving the upper for other
+
+dim_x = 1./passport.fig.cols;
+dim_y = 1./passport.fig.rows;
+
+pos_x = passport.fig.unit.pos(1)*dim_x;
+pos_y = passport.fig.unit.pos(2)*dim_y;
+
+frame = make_response_frame(pos_x, pos_y, dim_x, dim_y, passport.fig.fig_handle);
 
 %get the unit
+a_unit = passport.unit_meta;
+u_s = load_unit(a_unit);
 
-%make the correlogram
+%get the distribution
+isi = isi_distribution(u_s.times);
+%decimate
+isi_dist = decimate(isi.dist, passport.fig.unit.hist_bin);
+t        = decimate(isi.t, passport.fig.unit.hist_bin);
 
-%make the frame for waveform/correlogram
+%plot the distribuition
+t1   = -passport.fig.unit.hist_t_max;
+t2   = passport.fig.unit.hist_t_max;
 
-%plot correlogram
+isi_d_max = max(isi_dist)*1.2;
+title_text = 'isi';
 
-%plot waveform
+% Change to new colors.
+set(frame.ax_psth, 'ColorOrder', [0 0.75 0; 0.5 0.5 0.5], 'NextPlot', 'replacechildren');
 
+%plot the distribution in the psth axis
+    area(frame.ax_psth, [-fliplr(t) t], [fliplr(isi_dist) isi_dist],...
+        'FaceColor', [1 1 0],...
+        'EdgeColor',  [0.5 0.5, 0.5]);
+    
+    set(frame.ax_psth, ...
+        'LineWidth', 1,...
+        'XLim',      [t1, t2], ...
+        'XTick',     [t1+10, 0, t2-10], ...
+        'YLim',      [0, isi_d_max], ...
+        'YTick',     0:round(isi_d_max/5):isi_d_max-round(isi_d_max/5));
+    
+% insert the title
+title(frame.ax_psth,title_text,'FontSize', passport.fig.default_title_font_size);
+
+%%%% 
+%plot all the spikes in an x axis to spot silent periods
+%spike count in intervals of some seconds
+%rounded count
+bs=5000;
+binned_times = floor(u_s.times/bs);
+binned_t     = 1:max(binned_times);
+spike_dist  = arrayfun(@(x) sum(binned_times==x),binned_t);
+spike_times = round(binned_t*bs/1000); %this one is in sec!!
+
+t1   = 0;
+t2   = max(spike_times);
+rmax = max(spike_dist);
+title_text = sprintf('spike events (%d sec bin)', round(bs/1000));
+
+plot(frame.ax_rast, spike_times, spike_dist);
+set(frame.ax_rast, 'XLim', [t1, t2], ...
+    'YLim',        [0, rmax*1.2], ...
+    'YTick',       [0, rmax], ...
+    'XTick',       [0, round(t2*0.9)]);
+
+title(frame.ax_rast,title_text,'FontSize', passport.fig.default_title_font_size);
+
+
+passport.fig.unit.frame = frame;
+
+end
+
+function passport = plot_info(passport)
+
+
+dim_x = 1./passport.fig.cols;
+dim_y = 1./passport.fig.rows;
+
+pos_x = passport.fig.info.pos(1)*dim_x;
+pos_y = passport.fig.info.pos(2)*dim_y;
+
+
+
+title_text = 'unit meta';
+frame = make_info_frame(pos_x, pos_y, dim_x, dim_y, passport.fig.fig_handle);
+title(frame.ax_info,title_text,'FontSize', passport.fig.default_title_font_size);
+
+set(frame.ax_info, 'XLim', [0 100], 'YLim', [0 100]);
+
+%get unit info
+[s_info] = load_info(passport.unit_meta);
+
+%with s_info buildup the text and positions
+%example:
+label_props = [];
+label_prop.label  = 'Mouse Id: ';
+label_prop.text = num2str(s_info.mouseId, '%.1f');
+label_prop.pos    = [0, 90];
+label_props = [label_props label_prop];
+
+label_prop.label  = 'State: ';
+label_prop.text = s_info.rec.awake_anesth;
+label_prop.pos    = [0, 80];
+label_props = [label_props label_prop];
+
+label_prop.label  = 'Probe: ';
+label_prop.text   = s_info.rec.electrode_type;
+label_prop.pos    = [0, 70];
+label_props = [label_props label_prop];
+
+label_prop.label  = 'Depth: ';
+label_prop.text   = num2str(s_info.rec.site_depth);
+label_prop.pos    = [0, 60];
+label_props = [label_props label_prop];
+
+label_prop.label  = 'Side: ';
+label_prop.text   = (s_info.rec.site_side);
+label_prop.pos    = [0, 50];
+label_props = [label_props label_prop];
+
+axes(frame.ax_info)
+axis off
+for i=1:numel(label_props)
+    lp = label_props(i);
+    text(lp.pos(1),lp.pos(2),[lp.label lp.text],'HorizontalAlignment','left');
+end
+
+passport.fig.info.frame = frame;
+
+end
+
+function unit = load_unit(unit_meta)
+
+% clu   = unit_meta.clu;
+% 
+% if numel(clu)>1
+%     warning('Unit %s has more than 1 cluster, still dont know how to handle that', unit_meta.Id)
+%     unit = [];
+%     return
+% end
+% 
+% group = unit_meta.group;
+
+fn = file_names(unit_meta.mouse, unit_meta.sess, unit_meta.rec);
+q=load(fn.exp_spikes);
+unit=q.unit;
+
+% u_idx = find([units.group]==group & [units.clu]==clu);
+% 
+% unit = units(u_idx);
+
+end
+
+function [s_info] = load_info(unit_meta)
+
+fn = file_names(unit_meta.mouse, unit_meta.sess, unit_meta.rec);
+q=load(fn.ss_sess_info);
+
+s_info = q.info;
+s_info.rec(~strcmpi(unit_meta.rec, {s_info.rec.name})) = [];
+
+end
+
+function isi = isi_distribution(spikes1)
+
+t = [1:100];
+
+isi_ms = round(diff(spikes1));
+
+isi.dist   = arrayfun(@(x) sum(isi_ms==x), t);
+isi.t      = t;
 end
 
 
@@ -191,7 +434,7 @@ set(frame.ax_rast, 'XLim', [t1, t2], ...
 %%%% 
 
 % insert the title
-title(frame.ax_rast,title_text,'FontSize', 8);
+title(frame.ax_rast,title_text,'FontSize', response.fg.default_title_font_size);
 
 % 
 % plot(frame.ax_rast,x,y)
@@ -199,6 +442,41 @@ title(frame.ax_rast,title_text,'FontSize', 8);
 % plot(frame.ax_psth,x,z)
 % 
 response_plot.frame = frame;
+
+end
+
+function frame = make_info_frame(pos_x, pos_y, dim_x, dim_y, fig)
+
+% Makes a frame with two axes for plotting psths. Splits the frame into two
+% vertical axes
+% 
+% pos_x, pos_y: position in the fig of the low-left corner of the frame
+% dim_x, dim_y: total dimensions of the frame
+
+% activate or create figure
+if exist('fig', 'var')
+    gf = figure(fig);
+else
+    gf = figure;
+end
+set(0, 'currentfigure', gf);  %# for figures
+set(gf,'nextPlot', 'add');
+
+%create axes
+shift_x = 0.05;
+shift_y = 0.05;
+
+ax_info = axes('OuterPosition',[pos_x + shift_x*dim_x, pos_y - 0.5*shift_y*dim_y,...
+    (1-2*shift_x)*dim_x, (1-shift_y)*dim_y]);
+set(ax_info, 'XTick',[]);
+set(ax_info, 'YTick',[]);
+set(ax_info, 'NextPlot', 'add');
+set(ax_info,'DefaultTextFontSize',8)
+
+%return the frame
+frame.fig  = gf;
+frame.ax_info = ax_info;
+
 
 end
 
@@ -220,17 +498,17 @@ set(0, 'currentfigure', gf);  %# for figures
 set(gf,'nextPlot', 'add');
 
 %create axes
-shift_x = 0.075;
-shift_y = 0.075;
+shift_x = 0.05;
+shift_y = 0.05;
 
-ax_rast = axes('Position',[pos_x + shift_x*dim_x, 0.5*dim_y + pos_y - 0.5*shift_y*dim_y,...
-        (1-2*shift_x)*dim_x, (0.45-shift_y)*dim_y]);
+ax_rast = axes('OuterPosition',[pos_x + shift_x*dim_x, 0.47*dim_y + pos_y - 0.5*shift_y*dim_y,...
+        (1-2*shift_x)*dim_x, (0.5-shift_y)*dim_y]);
 
     set(ax_rast, 'XTick',[]);
     set(ax_rast, 'YTick',[]);
 
-ax_psth = axes('Position',[pos_x + shift_x*dim_x, pos_y + shift_y*dim_y,...
-     (1-2*shift_x)*dim_x, (0.45-shift_y)*dim_y]);
+ax_psth = axes('OuterPosition',[pos_x + shift_x*dim_x, pos_y + shift_y*dim_y,...
+     (1-2*shift_x)*dim_x, (0.47-shift_y)*dim_y]);
  
     set(ax_psth, 'XTick',[]);
     set(ax_psth, 'YTick',[]);
@@ -288,7 +566,7 @@ function geometry = make_frame_geometry(one_stim)
  
  
  %for testing, just use 2hydroxy and menthone:
- odor_index = find( cellfun(@(x) any(strcmpi(one_stim.odorName,x)),{odors.alias}))
+ odor_index = find( cellfun(@(x) any(strcmpi(one_stim.odorName,x)),{odors.alias}));
  if isempty(odor_index)
     warning('odor %s not identified as a stimulus for the grid', one_stim.odorName);
     odor_index = 0;
@@ -300,12 +578,12 @@ function geometry = make_frame_geometry(one_stim)
     end
  end
  
- geometry.i = odor_index -1 ;
+ geometry.i = odor_index -1;
  geometry.j = conc_index -1;
  
 end
 
-function sniffs_dist = make_sniffs_dist(sniffs,bin)
+function sniffs_dist = make_sniff_dist(sniffs,bin)
 %make the distribuition of sniffs
 %sniffs: array of sniffs structures
 len_range = [0, 1000];
@@ -324,6 +602,7 @@ exh_count = arrayfun(@(x) sum(exh_lengths==x), len_axis);
 
 sniffs_dist.inh = decimate(inh_count, bin);
 sniffs_dist.exh = decimate(exh_count, bin);
+sniffs_dist.t   = decimate(len_axis, bin);
 
 end
 
