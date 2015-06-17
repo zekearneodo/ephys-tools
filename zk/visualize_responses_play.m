@@ -26,7 +26,7 @@ vr.view_rasters        = @view_rasters;
 vr.view_lfp            = @view_lfp;
 
 if nargin < 5
-    sType='laser'
+    sType='laser';
 end
 
 if nargin >1
@@ -84,18 +84,20 @@ else
 end
 
 if strcmp(sType,'laser')
-    vp.t1=-200;
-    vp.t2=400;
+    vp.t1=-50;
+    vp.t2= 100;
     vp.responseWindowDefault=100;
+    vp.bin = 5;
 else
     vp.t1  = -200;
     vp.t2  =  400;
     vp.responseWindowDefault=200;
+    vp.bin = 15;
 end
     
 vp.nt  = vp.t2-vp.t1;
-vp.bin = 20;
-vp.t   = mean(reshape((vp.t1+1):vp.t2, vp.bin , vp.nt/vp.bin),1);
+
+vp.t   = decimate((vp.t1+1:vp.t2),vp.bin);
 vp.smooth.wsize = round(vp.nt/8); % window size for gaussian smoothing of histo for plotting
 vp.smooth.cutof = 100; % cutoff for the gausiann smoothing
 vp.smooth.stdev = q.info.rec(nrec).sampling_freq/(2*pi*vp.smooth.cutof); % window size for gaussian smoothing of histo for plotting
@@ -109,7 +111,7 @@ if exist(trCFname)
     p = path;
     path(p,vp.fn.fold_pr_sess);
     fun=sprintf('%s_%s_trial_correct', vp.mouse,vp.sess);
-    trCorrectFcn=eval(['@' fun ';'])
+    trCorrectFcn=eval(['@' fun ';']);
     path(p);
     trial=feval(trCorrectFcn,q.trial);
     vp.tr=trial;
@@ -121,13 +123,13 @@ vp.stimTypes={'laser','odor'};
 %parameters for determining uniqueness of stimulus
 if isfield(vp.tr,'pulseOnsetDelay')
     vp.tr_type = 3;
-    vp.par = {'odorName', 'odorConc', 'laserDur', 'laserPower', 'pulseOnsetDelay'}
+    vp.par = {'odorName', 'odorConc', 'laserDur', 'laserPower', 'pulseOnsetDelay'};
 elseif isfield(vp.tr,'pulseOffset')        % just KPawakeM72_004
     vp.tr_type = 2;
-    vp.par = {'odorName', 'odorConc', 'laserDur', 'laserPower','pulseGroup','pulseOffset'}
+    vp.par = {'odorName', 'odorConc', 'laserDur', 'laserPower','pulseGroup','pulseOffset'};
 else                                       % old sessions
     vp.tr_type = 1;
-    vp.par = {'odorName', 'odorConc', 'laserDur', 'laserAmp'}
+    vp.par = {'odorName', 'odorConc', 'laserDur', 'laserAmp'};
 end
 
 vd=make_stimuli_set(vp);
@@ -138,11 +140,11 @@ function vd=make_stimuli_set(vp)
 % finding stimulus set, and filtering by properties of stimulation
 % eg: odorstim,lightstim
 
-stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserAmp', 0, 'in_tr', [])
+stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserAmp', 0, 'in_tr', []);
 
 for it=1:numel(vp.stimTypes)
-    sType=vp.stimTypes{it}
-    vd.(sType) = struct('list',[],'sort','')
+    sType=vp.stimTypes{it};
+    vd.(sType) = struct('list',[],'sort','');
 end
 
 % ====================================================================================
@@ -152,19 +154,19 @@ end
 
 
 for it=1:numel(vp.stimTypes)
-    sType=vp.stimTypes{it}
-    vd.(sType) = struct('list',[],'sort','')
+    sType=vp.stimTypes{it};
+    vd.(sType) = struct('list',[],'sort','');
 end
 
 switch vp.tr_type
     case 1
-        stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserAmp', 0, 'in_tr', [],'odorInfo', {})
+        stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserAmp', 0, 'in_tr', [],'odorInfo', {});
         tr=vp.tr;
     case 2
-        stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserPower', 0, 'in_tr', [],'odorInfo', {}, 'pulseOffset', [],'pulseGroup',[])
+        stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserPower', 0, 'in_tr', [],'odorInfo', {}, 'pulseOffset', [],'pulseGroup',[]);
         tr=vp.tr;
     case 3
-        stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserPower', 0, 'in_tr', [],'odorInfo', {}, 'pulseOnsetDelay', [])
+        stim = struct('odorName', '', 'odorConc', 0, 'laserDur', 0, 'laserPower', 0, 'in_tr', [],'odorInfo', {}, 'pulseOnsetDelay', []);
         tr=vp.tr;
 end
 
@@ -229,7 +231,7 @@ for it = 1:numel(tr)
     end
 end
 
-stim = stim(2:end)
+stim = stim(2:end);
 ns   = ns - 1;
 %remove from the list the stimuli for which there are less than 10 trials
 keepStim=[];
@@ -264,7 +266,7 @@ vd.stim=stim;
 end %function vd=make_stimuli_set()
 
 function odorInfo=get_odor_info(voPar)
-odorInfo=struct('name','','flows',[],'dillution',1,'vialConc',{},'vialId',{},'vial',{})
+odorInfo=struct('name','','flows',[],'dillution',1,'vialConc',{},'vialId',{},'vial',{});
 
 odorInfo(1).name      = voPar.odor;
 odorInfo(1).flows     = [voPar.AirFlow_1 ;  voPar.NitrogenFlow_1];
@@ -295,7 +297,7 @@ if strcmpi(sSort,'odorName')
     odorsList = unique({stim.odorName});
     odorsList(strcmpi({'not_an_event'},odorsList))=[];
     for io = 1:numel(odorsList)
-        stimThisOdor = stim(strcmpi({stim.odorName},odorsList{io}))
+        stimThisOdor = stim(strcmpi({stim.odorName},odorsList{io}));
         [~, in_sort] = sort(-[stimThisOdor.odorConc]);
         orderedStim = [orderedStim stimThisOdor(in_sort)];
     end
@@ -392,8 +394,8 @@ for kt = 1:numel(tr)
 end
 rateBase=rateBase/(nb); %divide by number of "trials"
 
-
-rateBaseHist = sum(reshape(rateBase, bin, nt/bin),1)/(bin/1000); %units is Hz
+rateBaseHist = decimate(rateBase, bin)/(bin/1000);
+%rateBaseHist = sum(reshape(rateBase, bin, nt/bin),1)/(bin/1000); %units is Hz
 avgRateBase = mean(rateBase)*1000; %units is Hz
 
 
@@ -490,7 +492,7 @@ for ks = 1:numel(stim)
     end
     x = x(1:nsp);
     y = y(1:nsp);
-    rate = sum(reshape(rate, bin, nt/bin),1)/kt/(bin/1000);
+    rate = decimate(rate, bin)/kt/(bin/1000);
     %     rateBase = sum(reshape(rateBase, bin, nt/bin),1)/kt*100;
     rate_pl = smoothts(rate,'g',smooth.wsize,smooth.stdev);
     
@@ -620,8 +622,6 @@ for iu=2:numel(un)
 end
 
 
-
-
 %saves the response data (the plot and the response structure)
 if ~exist(fn.fold_an_mouse, 'dir')
     mkdir(fn.fold_an_mouse)
@@ -632,7 +632,7 @@ end
 
 fileBase=[fn.basename_an sType '_units'];
 for iu=1:numel(un)
-    fileBase=[fileBase num2str(un(iu),'%02d')]
+    fileBase=[fileBase num2str(un(iu),'%02d')];
 end
 
 end

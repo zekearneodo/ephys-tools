@@ -1,5 +1,15 @@
 %quick and dirty
 %from cellsArray get a unit meta and run the visualize response
-a_unit=cellsArray(3)
+cp = cell_passport_tools();
+%open cellsArray
 
-vr=visualize_responses_play(a_unit.mouse,a_unit.sess,a_unit.rec,a_unit.clu,'odor')
+%select cellsarray
+cellsArray(~([cellsArray.light]==1))=[]
+for i=12:numel(cellsArray)
+    a_unit=cellsArray(i);
+    try
+    pa = cp.make_passport(a_unit);
+    catch me
+        continue
+    end
+end

@@ -330,14 +330,14 @@ function unit = load_unit(unit_meta)
 % end
 % 
 % group = unit_meta.group;
-
 fn = file_names(unit_meta.mouse, unit_meta.sess, unit_meta.rec);
 q=load(fn.exp_spikes);
-unit=q.unit;
 
-% u_idx = find([units.group]==group & [units.clu]==clu);
-% 
-% unit = units(u_idx);
+%fn spikes has all the cells of the rec (the used ones)
+%look it up by  sessCell, which is the unique identifier of
+%the cell across the session and appears only once in te rec
+
+unit=q.unit([q.unit.sessCell]== unit_meta.sessCell);
 
 end
 
@@ -569,9 +569,10 @@ function geometry = make_frame_geometry(one_stim)
     warning('odor %s not identified as a stimulus for the grid', one_stim.odorName);
     odor_index = 0;
  else
-    conc_index = find(odors(odor_index).concs> one_stim.odorConc*0.5 & odors(odor_index).concs<one_stim.odorConc*1.5);
-    if isempty(conc_index)
-        warning('concentriaton %0.4g of odor %s not identified as a stimulus for the grid', one_stim.odorConc, one_stim.odorName);
+    %conc_index = find(odors(odor_index).concs> one_stim.odorConc*0.5 & odors(odor_index).concs<one_stim.odorConc*1.5);
+    [conc_mismatch, conc_index]=min(abs(odors(odor_index).concs/one_stim.odorConc-1));
+    if 1-conc_mismatch < 0.4
+        warning('concentriaton %0.4g of odor %s poorly identified as a stimulus for the grid', one_stim.odorConc, one_stim.odorName);
         conc_index = 0;
     end
  end

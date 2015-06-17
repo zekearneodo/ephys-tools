@@ -6,56 +6,62 @@
 % - merge_clusters: gets all the spikes of the clusters listed in the cluList
 %   of the cell
 % It saves:
-% - 
+% -
 function [cn, cellsArray]= cells_neil(doit)
 global cn
 
-    cn.units_meta      = @units_meta;
-    cn.just_a_raster   = @just_a_raster;
-    cn.just_a_baseline = @just_a_baseline;
-    cn.make_rasters    = @make_rasters;
-    
-    cn.assemble_baseline_trial_tructure = @assemble_baseline_trial_tructure;
-    cn.assemble_baseline_trial_tructure_zk = @assemble_baseline_trial_tructure_zk;
-    cn.assemble_baseline = @assemble_baseline;
-    
-    if nargin>0 && doit==1
-        ffn=file_names();
-        % load all cells in a cell structure
-        mice = {'ZKawakeM72','KPawakeM72'};
-        %mice = {'ZKawakeM72'};
-        %load all the cells into an array of cells
-        disp(wrap_message('Getting cells and trial structures for Neil','*'));
-        cellsArray = [];
-        for is=1:numel(mice)
-            cs=mice{is};
-            cellFiles=dir(fullfile(ffn.fold_unit_db, [cs '*.mat']));
-            allCells = arrayfun(@(x) load(fullfile(ffn.fold_unit_db,x.name)),cellFiles,'UniformOutput',false);
-            cellsArray = [cellsArray [allCells{:}]];
-        end
-        
-        %filter the cells by session (knowing when the experiments begun)
-        keepCells =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>14 & [cellsArray.sess]< 28 ...
-            | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17);
-        
-        cellsArray(~keepCells)=[];
-        cellsArray(~([cellsArray.quality]==1))=[];
-        %cellsArray(~([cellsArray.light]==1))=[];
-        % now you got an array of cells for the suffixes
-        %with the cells selected, make all the units and place them ein the
-        %export_data folder
-        units_meta(cellsArray);
-        % now go through all those cells and:
-        % - find them in all the recs they appear in
-        % - make the raster for every rec
-        % - append it to the cell's structure
-        
-        %cellsArray(~(strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]<20))=[];
-        make_rasters(cellsArray);
-        % run kristina's script to make the cell baselines for all the
-        % cells selected
-        %assemble_baseline(cellsArray);
+cn.units_meta      = @units_meta;
+cn.just_a_raster   = @just_a_raster;
+cn.just_a_baseline = @just_a_baseline;
+cn.make_rasters    = @make_rasters;
+
+cn.assemble_baseline_trial_tructure = @assemble_baseline_trial_tructure;
+cn.assemble_baseline_trial_tructure_zk = @assemble_baseline_trial_tructure_zk;
+cn.assemble_baseline = @assemble_baseline;
+
+if nargin>0 && doit==1
+    ffn=file_names();
+    % load all cells in a cell structure
+    mice = {'ZKawakeM72','KPawakeM72'};
+    %mice = {'KPawakeM72'};
+    %load all the cells into an array of cells
+    disp(wrap_message('Getting cells and trial structures for Neil','*'));
+    cellsArray = [];
+    for is=1:numel(mice)
+        cs=mice{is};
+        cellFiles=dir(fullfile(ffn.fold_unit_db, [cs '*.mat']));
+        allCells = arrayfun(@(x) load(fullfile(ffn.fold_unit_db,x.name)),cellFiles,'UniformOutput',false);
+        cellsArray = [cellsArray [allCells{:}]]; %#ok<AGROW>
     end
+    
+    keepCells1 = zeros(1,numel(cellsArray));
+    keepCells2 = zeros(1,numel(cellsArray));
+    %filter the cells by session (knowing when the experiments begun)
+    %concentration:
+    %         keepCells1 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]>3 & [cellsArray.sess]< 15 | [cellsArray.sess]==914)...
+    %             | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>13 & [cellsArray.sess]<17);
+    %concentration:
+    keepCells2 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17 & [cellsArray.sess]< 28 ...
+        | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17);
+    
+    keepCells = keepCells1 + keepCells2;
+    cellsArray(~keepCells)=[];
+    cellsArray(~([cellsArray.quality]==1))=[];
+    %cellsArray(~([cellsArray.light]==1))=[];
+    % now you got an array of cells for the suffixes
+    %with the cells selected, make all the units and place them ein the
+    %export_data folder
+    units_meta(cellsArray);
+    % now go through all those cells and:
+    % - find them in all the recs they appear in
+    % - make the raster for every rec
+    % - append it to the cell's structure
+    
+    %cellsArray(~(strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]<20))=[];
+    %make_rasters(cellsArray);
+    %save all the meta,
+    save(fullfile(ffn.fold_exp_data,'cells_meta.mat'), 'cellsArray');
+end
 
 end
 
@@ -157,7 +163,7 @@ for ic = 1:numel(cells_uId)
     one_cell.uid    = sprintf('%s_%03d_%03d',one_cell.mouse,one_cell.sess,this_cell_instances(1).sessCell);
     
     one_cell.raster = raster;
-
+    
     %save it
     fn=file_names(one_cell.mouse,one_cell.sess);
     cellFn=fullfile(fn.fold_exp_data,sprintf('%s_cell.mat',one_cell.uid));
@@ -178,93 +184,93 @@ function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
 %returns one raster for one particular rec in which the cell appears.
 %unitId is the unit identifier trhough the session.
 
-    %unit is a unit of the type of neil units
-    %get the data of the unit, get all the trials the unit is in (from neil
-    %trials, and make a raster centered on the first inhale after onset of
-    %odor
-    % 
-    %unitNumber is which unit of that rec you want to get the raster.
-    fprintf('Making raster for unit %s_%03d_%03d_%s\n',mouse,sess,unitSessNumber,rec)
-    fn = file_names(mouse,sess,rec);
-    trial = neil_trial_structure(mouse,sess,rec);
-    save(fn.exp_trial);
-    load(fn.exp_spikes);
-    
-    %meta data
-    load(fullfile(fn.fold_exp_data,'unitsmeta.mat'));
-    %look up the cell
-    cellsOfRec =cellsArray( find( strcmpi(mouse,{cellsArray.mouse}) & strcmpi(rec,{cellsArray.rec}) & [cellsArray.sess]==sess));
-    thisCell = cellsOfRec([cellsOfRec.sessCell]==unitSessNumber);
-    unitNumber = find(strcmpi(thisCell.uId,{cellsOfRec.uId})); %number of cell amongst the cells of the rec
-    thisUnit = unit(unitNumber);
-    %     %select a particular odor, for debugging purposes
+%unit is a unit of the type of neil units
+%get the data of the unit, get all the trials the unit is in (from neil
+%trials, and make a raster centered on the first inhale after onset of
+%odor
+%
+%unitNumber is which unit of that rec you want to get the raster.
+fprintf('Making raster for unit %s_%03d_%03d_%s\n',mouse,sess,unitSessNumber,rec)
+fn = file_names(mouse,sess,rec);
+trial = neil_trial_structure(mouse,sess,rec);
+save(fn.exp_trial);
+load(fn.exp_spikes);
+
+%meta data
+load(fullfile(fn.fold_exp_data,'unitsmeta.mat'));
+%look up the cell
+cellsOfRec =cellsArray( find( strcmpi(mouse,{cellsArray.mouse}) & strcmpi(rec,{cellsArray.rec}) & [cellsArray.sess]==sess));
+thisCell = cellsOfRec([cellsOfRec.sessCell]==unitSessNumber);
+unitNumber = find(strcmpi(thisCell.uId,{cellsOfRec.uId})); %number of cell amongst the cells of the rec
+thisUnit = unit(unitNumber);
+%     %select a particular odor, for debugging purposes
 %     trial=trial(strcmpi('2-hydroxyacetophenone',{trial.odorName}));
 %     nt = numel(trial);
 
-    
-    %the trials in exp are already refined (output of neil_trial_structure)
-    %get that trial structure and go trial by trial adding rows to the big
-    %raster
-    t1 = -200;
-    t2 = 2500;
-    
-    nt=numel(trial);
-    if nt<1
-        raster = [];
-        return
-    end
-    odors   = {trial.odorName};
-    concs   = [trial.odorConc];
-    trialId = {trial.id};
-    tVec = (t1:t2);
-    spikes = zeros(nt,length(tVec));
-    t0Vec = nan(1,numel(trial));
-    sp = round(thisUnit.times);
-    
-    x    = zeros(1e5,1);    y    = zeros(1e5,1);
-    nsp = 0;
 
-    for it = 1:nt
-        %get all the spikes for this unit within the window tVec
-        ii = find(trial(it).sniffZeroTimes(1,:)>trial(it).odorTimes(1)*1.009,1);
-        if isempty(ii) || ii<1
-            continue
-        end
-        t0 = trial(it).sniffZeroTimes(1,ii) + trial(it).start;
-        spikeTimes = sp((sp>t0+t1)&(sp<t0+t2))-t0;
-        t0Vec(it) = t0;
-        
-        % compact raster
-        n=numel(spikeTimes);
-        x(nsp+(1:n)) = spikeTimes(:);
-        y(nsp+(1:n)) = it*ones(1,n);
-        nsp = nsp + n;
-        if n>0
-        spikes(it,spikeTimes-t1) = 1;   
-        end
+%the trials in exp are already refined (output of neil_trial_structure)
+%get that trial structure and go trial by trial adding rows to the big
+%raster
+t1 = -3000;
+t2 = 2500;
+
+nt=numel(trial);
+if nt<1
+    raster = [];
+    return
+end
+odors   = {trial.odorName};
+concs   = [trial.odorConc];
+trialId = {trial.id};
+tVec = (t1:t2);
+spikes = zeros(nt,length(tVec));
+t0Vec = nan(1,numel(trial));
+sp = round(thisUnit.times);
+
+x    = zeros(1e5,1);    y    = zeros(1e5,1);
+nsp = 0;
+
+for it = 1:nt
+    %get all the spikes for this unit within the window tVec
+    ii = find(trial(it).sniffZeroTimes(1,:)>trial(it).odorTimes(1)*1.009,1);
+    if isempty(ii) || ii<1
+        continue
     end
-    x = x(1:nsp);
-    y = y(1:nsp);
+    t0 = trial(it).sniffZeroTimes(1,ii) + trial(it).start;
+    spikeTimes = sp((sp>t0+t1)&(sp<t0+t2))-t0;
+    t0Vec(it) = t0;
     
+    % compact raster
+    n=numel(spikeTimes);
+    x(nsp+(1:n)) = spikeTimes(:);
+    y(nsp+(1:n)) = it*ones(1,n);
+    nsp = nsp + n;
+    if n>0
+        spikes(it,spikeTimes-t1) = 1;
+    end
+end
+x = x(1:nsp);
+y = y(1:nsp);
+
 %     figure
 %     plot(x,y,'.','MarkerSize',7);
-%     
-    %%%%%%%%%%%%%%%
-    % Add cellId?  mouse_sess_rec_int --> int=unique integer of cell 
-    %                                         in session from unitDb
-    raster.odors   = odors;
-    raster.concs   = concs;
-    raster.trialId = trialId;
-    raster.spikes  = spikes;
-    raster.t       = tVec;
-    raster.t0      = t0Vec;
-    raster.rec     = rec;
-    raster.cell    = thisCell;
+%
+%%%%%%%%%%%%%%%
+% Add cellId?  mouse_sess_rec_int --> int=unique integer of cell
+%                                         in session from unitDb
+raster.odors   = odors;
+raster.concs   = concs;
+raster.trialId = trialId;
+raster.spikes  = spikes;
+raster.t       = tVec;
+raster.t0      = t0Vec;
+raster.rec     = rec;
+raster.cell    = thisCell;
 
-    %for quick debugging of rasters
-    raster.x = x;
-    raster.y = y;
-    
+%for quick debugging of rasters
+raster.x = x;
+raster.y = y;
+
 end
 
 function [raster] = just_a_baseline(mouse,sess,rec,unitSessNumber)
@@ -360,14 +366,14 @@ rsmSniff = load(fn.rsm_data,'Sniff');
 %pick only the odor trials
 trial(strcmpi({'none'},{trial.odorName}))=[];
 trial(strcmpi({'empty'},{trial.odorName}))=[];
-t1 = -200;
+t1 = -3000;
 t2 = 2500-1;
 
 trials = [];
 for it=1:numel(trial)
     ttr = trial(it);
     tr.start      = ttr.start+t1;
-    if isempty(tr.start) || ttr.odorTimes(1)<=0
+    if isempty(tr.start) || ttr.start+t1<0 || ttr.odorTimes(1)<=0
         continue
     end
     tVec          = ttr.start + (t1:t2-1); %absolute times of the trial chunk
@@ -382,40 +388,40 @@ for it=1:numel(trial)
     stimTimes([tr.odorTimes]>t2-t1)=t2-t1;
     stimTimes([tr.odorTimes]<0)=0;
     tr.stim(stimTimes(1):stimTimes(2))=1;
-
+    
     %the sniff zero times
-%     if it==105
-%     disp(it)
-%     end
+    %     if it==105
+    %     disp(it)
+    %     end
     %some debugging:
     %plot the sniff, the stimulus and the sniffZero times for this trial
     %and check how they align:
-%     figure
-%     hold on
-%     plot(tr.flow*-1)
-%     plot(tr.stim*10000,'r')
-%     plot(ttr.sniffZeroTimes(1,:)-t1,zeros(size(ttr.sniffZeroTimes(1,:))),'k*')
-%     plot(ttr.sniffZeroTimes(2,:)-t1,zeros(size(ttr.sniffZeroTimes(2,:))),'go')
-%     plot(ttr.sniffParabZeroTimes(2,:)-t1,zeros(size(ttr.sniffParabZeroTimes(2,:))),'mx')
+    %     figure
+    %     hold on
+    %     plot(tr.flow*-1)
+    %     plot(tr.stim*10000,'r')
+    %     plot(ttr.sniffZeroTimes(1,:)-t1,zeros(size(ttr.sniffZeroTimes(1,:))),'k*')
+    %     plot(ttr.sniffZeroTimes(2,:)-t1,zeros(size(ttr.sniffZeroTimes(2,:))),'go')
+    %     plot(ttr.sniffParabZeroTimes(2,:)-t1,zeros(size(ttr.sniffParabZeroTimes(2,:))),'mx')
     sn = zeros(size(tr.stim));
     try
-    if ~any(isnan(ttr.sniffParabZeroTimes(2,:)))
-        spZeros=[];
-        spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)));
-        spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)));
-        tr.sniffZeroTimes = ttr.sniffZeroTimes - t1;
-        sz = spZeros - t1*ones(size(spZeros));
-        firstSnif = find(sz>0,1,'first');
-        lastSnif  = find(sz<t2,1,'last');
-        sn(1:sz(firstSnif))=bitget(firstSnif-1,1);
-        for is=firstSnif:lastSnif-1
-            sn(sz(is):sz(is+1))=bitget(is,1);
+        if ~any(isnan(ttr.sniffParabZeroTimes(2,:)))
+            spZeros=[];
+            spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)));
+            spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)));
+            tr.sniffZeroTimes = ttr.sniffZeroTimes - t1;
+            %         sz = spZeros - t1*ones(size(spZeros));
+            %         firstSnif = find(sz>0,1,'first');
+            %         lastSnif  = find(sz<t2,1,'last');
+            %         sn(1:sz(firstSnif))=bitget(firstSnif-1,1);
+            %         for is=firstSnif:lastSnif-1
+            %             sn(sz(is):sz(is+1))=bitget(is,1);
+            %         end
+            %         sn(sz(lastSnif):end)=bitget(lastSnif,1);
+            %         sn(sn==0)=-1;
+            %         tr.sniffPhase = sn;
+            trials = [trials tr];
         end
-        sn(sz(lastSnif):end)=bitget(lastSnif,1);
-        sn(sn==0)=-1;
-        tr.sniffPhase = sn;
-        trials = [trials tr];
-    end
     catch
         warning('Error in sniff phases of trial %d - %d',ttr.run,ttr.runTrialNum);
         tr.sniffPhase = nan;
@@ -515,7 +521,7 @@ end
 if badSniffs>0
     warning('%d problems with sniff zeros',badSniffs);
 end
-fprintf('(%d sniffs)\n', numel(trialsBase)); 
+fprintf('(%d sniffs)\n', numel(trialsBase));
 save(fullfile(fn.fold_exp_data,sprintf('%strialsBase.mat',fn.basename_an)), 'trialsBase');
 
 end
@@ -542,7 +548,7 @@ for itr=1:numel(trial)
             sniffZeros_toUse = nan(2,size(tr.sniffParabZeroTimes,2));
             sniffZeros_toUse(2,:) = round(tr.sniffParabZeroTimes(2,:));
             sniffZeros_toUse(1,:) = tr.sniffZeroTimes(1,:);
-        else 
+        else
             itr
             error('sniff zeros and parabs are not same length')
         end
@@ -572,7 +578,7 @@ for itr=1:numel(trial)
             
             ms_tr2rsm = diff([FV_recTime FV_rsmTime]);
             if abs(ms_tr2rsm)>3
-%                 error('Couldnt find close enough FVon time in rsm_data')
+                %                 error('Couldnt find close enough FVon time in rsm_data')
                 continue
             else
                 otr=otr+1;
@@ -615,8 +621,8 @@ for itr=1:numel(trial)
                         plot(1:t2-t1,Sniff(t1+ms_tr2rsm:t2+ms_tr2rsm-1))
                         plot(vectorizedSniff,zeros(size(vectorizedSniff)),'r*')
                         %         fill([t1;t2]*ones(1,2),ones(2,1)*[-3e4 3e4],'-','LineWidth',100,'Color',[1 0.9 0.95])
-%                         fill([t1 t1 t2 t2],[-3e4 3e4 3e4 -3e4],[1 0.95 0.97],'EdgeColor','none')
-%                         plot(t1+ms_tr2rsm:t2+ms_tr2rsm+1e3,Sniff(t1+ms_tr2rsm:t2+ms_tr2rsm+1e3))
+                        %                         fill([t1 t1 t2 t2],[-3e4 3e4 3e4 -3e4],[1 0.95 0.97],'EdgeColor','none')
+                        %                         plot(t1+ms_tr2rsm:t2+ms_tr2rsm+1e3,Sniff(t1+ms_tr2rsm:t2+ms_tr2rsm+1e3))
                         plot((tr.sniffZeroTimes(1,ii)+tr.start)*ones(1,2),[-3e4 3e4],':g','LineWidth',3)
                         plot((t1+1:t2),-1e4.*sniffPhase,'k')
                         pause(2)
@@ -631,9 +637,9 @@ for itr=1:numel(trial)
                         trialsBase(otr).sniffFlow = Sniff(t1+1+ms_tr2rsm:t2+ms_tr2rsm);
                         trialsBase(otr).sniffPhase = nan;
                         
-%                         figure(1); clf; hold on
-%                         plot(1:t2-t1,Sniff(t1+ms_tr2rsm:t2+ms_tr2rsm-1))
-%                         plot(vectorizedSniff,zeros(size(vectorizedSniff)),'r*')
+                        %                         figure(1); clf; hold on
+                        %                         plot(1:t2-t1,Sniff(t1+ms_tr2rsm:t2+ms_tr2rsm-1))
+                        %                         plot(vectorizedSniff,zeros(size(vectorizedSniff)),'r*')
                         warning('Sniff_analysis may have missed a cycle; check waveform')
                     end
                 end
@@ -645,25 +651,25 @@ end
 end
 
 function [spikesBase,qCells] = assemble_baseline(qCells)
-% This function creates a file of cell/spike data formatted for Neil. 
+% This function creates a file of cell/spike data formatted for Neil.
 fn=file_names();
 
 % Specify cell base name if you want to
 %           need to generalize to optional specification
 
 
-% Find cell meta data for the unit(s) you want to get spikes for. 
-% If the cells you want are already a variable in the workspace, enter 
+% Find cell meta data for the unit(s) you want to get spikes for.
+% If the cells you want are already a variable in the workspace, enter
 % qCells as an input argument.
 if nargin<1
-%     mouse = 'ZKawakeM72';
-%     sess  = '004';
-%     rec   = 'c';
+    %     mouse = 'ZKawakeM72';
+    %     sess  = '004';
+    %     rec   = 'c';
     
     nCells=0;
     find_qCells=[];
     cellBaseName=[sprintf('%s_%s_%s_',mouse,sess,rec) '*.mat'];
-%     cellBaseName=['*.mat'];
+    %     cellBaseName=['*.mat'];
     cellsList=dir(fullfile(fn.fold_unit_db,cellBaseName));
     find_qCells=cellfun(@(x) getCell(fullfile(fn.fold_unit_db,x)),{cellsList.name},'UniformOutput',false);
     find_qCells(cellfun('isempty',find_qCells))=[];
@@ -671,14 +677,14 @@ if nargin<1
 end
 nCells=numel(qCells);
 
-% 
+%
 for ic = 1:nCells
     [~,remain] = strtok(qCells(ic).Id,'_');
     [sess,~] = strtok(remain,'_');
     fn=file_names(qCells(ic).mouse,sess,qCells(ic).rec);
     
     % Skip recs that had old method of aligning trials
-    if any(strcmpi(fn.basename_an,{'KPawakeM72_006_a_' 'ZKawakeM72_001_c_'}))  
+    if any(strcmpi(fn.basename_an,{'KPawakeM72_006_a_' 'ZKawakeM72_001_c_'}))
         continue
     end
     
@@ -690,7 +696,7 @@ for ic = 1:nCells
     units = [qCells(ic).clu]';   % this is cluster number(s) in rec
     
     % Try to load trialsBase struct (format for Neil) for the
-    % mouse/sess/rec the current cell belongs to. 
+    % mouse/sess/rec the current cell belongs to.
     % If it doesn't exist, call function to create it.
     try
         q = load(fullfile(fn.base_folder,'data_Neil',sprintf('%strialsBase.mat',fn.basename_an)));
@@ -702,7 +708,7 @@ for ic = 1:nCells
     
     % Extract spikes and save structure
     spikes = zeros(numel(trialsBase),numel(trialsBase(1).sniffPhase));
-%     spikes_b = zeros(numel(trialsBase),numel(trialsBase(1).sniffPhase));
+    %     spikes_b = zeros(numel(trialsBase),numel(trialsBase(1).sniffPhase));
     otr=1;  tr_uids=[]; snPhase = [];
     for itr = 1:numel(trial)
         if otr<=numel(trialsBase)
@@ -712,25 +718,25 @@ for ic = 1:nCells
             else
                 if ~isempty(trial(itr).spikeTimes)
                     allspikes = sort(round(vertcat(trial(itr).spikeTimes{units})));
-%                         + trialsBase(otr).start;
-%                     allspikes_b = sort(round(vertcat(trial(itr).spikeTimes{units})))...
-%                         + trialsBase(otr).start;
-%                     spikeTimes_b = allspikes_b(allspikes_b>trialsBase(otr).start...
-%                         & allspikes_b<=(trialsBase(otr).start+numel(trialsBase(otr).sniffPhase)))...
-%                         - trialsBase(otr).start;
+                    %                         + trialsBase(otr).start;
+                    %                     allspikes_b = sort(round(vertcat(trial(itr).spikeTimes{units})))...
+                    %                         + trialsBase(otr).start;
+                    %                     spikeTimes_b = allspikes_b(allspikes_b>trialsBase(otr).start...
+                    %                         & allspikes_b<=(trialsBase(otr).start+numel(trialsBase(otr).sniffPhase)))...
+                    %                         - trialsBase(otr).start;
                     t1fromTrPin = trialsBase(otr).start - trial(itr).start;
                     spikeTimes = allspikes(allspikes>t1fromTrPin...
                         & allspikes<=(t1fromTrPin+numel(trialsBase(otr).sniffPhase)))...
                         -t1fromTrPin;
                     spikes(otr,spikeTimes) = 1;
-%                     spikes_b(otr,spikeTimes_b) = 1;
+                    %                     spikes_b(otr,spikeTimes_b) = 1;
                     if ~any(isnan(trialsBase(otr).sniffPhase))
                         snPhase = [snPhase; trialsBase(otr).sniffPhase];
                     end
                     otr=otr+1;
                 else
                     spikes(otr,:) = nan;
-%                     spikes_b(otr,:) = nan;
+                    %                     spikes_b(otr,:) = nan;
                     otr=otr+1;
                 end
             end
@@ -747,17 +753,17 @@ for ic = 1:nCells
         allSpikesBase(ic).spikes = spikes;
         allSpikesBase(ic).trialId = tr_uids;
         
-%     figure; 
-%     subplot(2,1,1);
-%     imagesc(spikes); colormap('gray')
-%     subplot(2,1,2);
-%     imagesc(snPhase); colormap('gray')
+        %     figure;
+        %     subplot(2,1,1);
+        %     imagesc(spikes); colormap('gray')
+        %     subplot(2,1,2);
+        %     imagesc(snPhase); colormap('gray')
     end
     
-%     if strcmp(cellId,'KPawakeM72_016_a_16')
-        spikesBase = allSpikesBase(ic);
-        save(fullfile(fn.base_folder,'data_Neil',sprintf('%s%i_spikesBase.mat',fn.basename_an,qCells(ic).sessCell)), 'spikesBase')
-%     end
+    %     if strcmp(cellId,'KPawakeM72_016_a_16')
+    spikesBase = allSpikesBase(ic);
+    save(fullfile(fn.base_folder,'data_Neil',sprintf('%s%i_spikesBase.mat',fn.basename_an,qCells(ic).sessCell)), 'spikesBase')
+    %     end
 end
 % Save all cells in one struct
 % save(fullfile(fn.base_folder,'data_Neil',sprintf('spikesBase_lightrals_%s.mat',date)), 'allSpikesBase')
@@ -773,4 +779,4 @@ end
     end
 end
 
-    
+

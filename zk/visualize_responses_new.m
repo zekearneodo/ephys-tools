@@ -27,10 +27,6 @@ vr.view_lfp            = @view_lfp;
 % pp.ss_prep        = @ss_prep;
 % pp.resampling     = @resampling;
 
-if nargin < 5
-    sType='laser'
-end
-
 if nargin >1
 dm = data_management_tools_031();
 vp = visual_par_init(mouse,sess,rec,sType);
@@ -87,7 +83,7 @@ end
 
 if strcmp(sType,'laser')
     vp.t1=-200;
-    vp.t2=400;
+    vp.t2= 400;
     vp.responseWindowDefault=100;
 else
     vp.t1  = -200;
