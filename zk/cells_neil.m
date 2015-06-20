@@ -11,9 +11,11 @@ function [cn, cellsArray]= cells_neil(doit)
 global cn
 
 cn.units_meta      = @units_meta;
-cn.just_a_raster   = @just_a_raster;
+cn.do_raster       = @do_raster;
+cn.just_a_raster   = @just_a_raster_set;
 cn.just_a_baseline = @just_a_baseline;
 cn.make_rasters    = @make_rasters;
+cn.neil_trial_structure = @neil_trial_structure;
 
 cn.assemble_baseline_trial_tructure = @assemble_baseline_trial_tructure;
 cn.assemble_baseline_trial_tructure_zk = @assemble_baseline_trial_tructure_zk;
@@ -38,8 +40,8 @@ if nargin>0 && doit==1
     keepCells2 = zeros(1,numel(cellsArray));
     %filter the cells by session (knowing when the experiments begun)
     %concentration:
-    %         keepCells1 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]>3 & [cellsArray.sess]< 15 | [cellsArray.sess]==914)...
-    %             | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>13 & [cellsArray.sess]<17);
+            keepCells1 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]>3 & [cellsArray.sess]< 15 | [cellsArray.sess]==914)...
+                | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>13 & [cellsArray.sess]<17);
     %concentration:
     keepCells2 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17 & [cellsArray.sess]< 28 ...
         | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17);
@@ -51,14 +53,14 @@ if nargin>0 && doit==1
     % now you got an array of cells for the suffixes
     %with the cells selected, make all the units and place them ein the
     %export_data folder
-    units_meta(cellsArray);
+    %units_meta(cellsArray);
     % now go through all those cells and:
     % - find them in all the recs they appear in
     % - make the raster for every rec
     % - append it to the cell's structure
     
     %cellsArray(~(strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]<20))=[];
-    %make_rasters(cellsArray);
+    make_rasters(cellsArray);
     %save all the meta,
     save(fullfile(ffn.fold_exp_data,'cells_meta.mat'), 'cellsArray');
 end
@@ -103,16 +105,12 @@ for im=1:numel(mice)
             sn = load(fn.rsm_data,'Sniff');
             save(fullfile(fn.fold_exp_data,sprintf('%s_%03d_%s_sniff.mat',mouse,sess,rec)),'-struct','sn','Sniff');
             fn=file_names(mouse,sess,rec);
-            load(fn.trial)
-            trial=rmfield(trial,'spikeTimes');
-            save(fn.exp_trial,'trial');
             %do the trial structure for the baseline (using kristina's
             %program)
             %trialsBase = assemble_baseline_trial_tructure_zk(mouse,sess,rec);
             %save(fullfile(fn.fold_exp_data,sprintf('%strialsBase.mat',fn.basename_an)), 'trialsBase')
             %get all the units in the rec
             recCells = sessCells(strcmpi(rec,{sessCells.rec}));
-            
             % go through all the units and make the unit (merge when multi-cluster)
             unit = [];
             for ic=1:numel(recCells)
@@ -139,20 +137,19 @@ function make_rasters(cellsArray)
 %   cellsArray : array of unit metadata structures (the output of
 %                getUnits.py)
 %
+%cellsArray(~strcmpi('ZKawakeM72_010_001',{cellsArray.uId}))=[];
 cells_uId = unique({cellsArray.uId});
 
 for ic = 1:numel(cells_uId)
     this_cell_instances = cellsArray(strcmpi(cells_uId(ic),{cellsArray.uId}));
     %for all the instances of this cell (recs it is in)
     %gather the rasters.
-    raster = arrayfun(@(x) just_a_raster(x.mouse,x.sess,x.rec,x.sessCell),this_cell_instances);
-    if isempty(raster)
-        continue
-    end
+
     spikesBase = arrayfun(@(x) just_a_baseline(x.mouse,x.sess,x.rec,x.sessCell),this_cell_instances);
     %data for the unit
     %quick check for screw ups in following the cell through recs
     %if the cell is litral its litral in all recs
+    clear one_cell;
     one_cell.light = unique([this_cell_instances.light]);
     if length(one_cell.light)>1
         warning('Mismatch in light responsiveness of cell %s trhough recs. Skipping cell.',cells_uId(ic))
@@ -162,7 +159,34 @@ for ic = 1:numel(cells_uId)
     one_cell.sess   = this_cell_instances(1).sess;
     one_cell.uid    = sprintf('%s_%03d_%03d',one_cell.mouse,one_cell.sess,this_cell_instances(1).sessCell);
     
-    one_cell.raster = raster;
+    % add the rasters of each response
+    %fields to store in the raster
+    %field for storing -> name of field in read raster
+    raster_fields.odor       = 'raster';
+    raster_fields.light      = 'light_raster';
+    raster_fields.odor_light = 'odor_light_raster';
+    
+
+    for i = 1:numel(this_cell_instances)
+        x = this_cell_instances(i);
+        raster = just_a_raster_set(x.mouse,x.sess,x.rec,x.sessCell);
+        if isempty(raster)
+            continue
+        end
+        
+        rf = fields(raster);
+        for ifr = 1:numel(rf)
+            read_field  = rf{ifr};
+            write_field = raster_fields.(read_field);
+            
+            if ~isfield(one_cell, write_field)
+                one_cell.(write_field) = raster.(read_field);
+            else
+                one_cell.(write_field) = [one_cell.(write_field) raster.(read_field)];
+            end
+        end
+
+    end
     
     %save it
     fn=file_names(one_cell.mouse,one_cell.sess);
@@ -176,21 +200,135 @@ end
 
 end
 
+%create one raster from trial structure trial of events in sp_times, with
+%stimulus type sType
 
-function [raster] = just_a_raster(mouse,sess,rec,unitSessNumber)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function [raster] = do_raster(trial, sp, s_type)
+%trial : trial structure
+%sp : vector of spike times of the unit
+%sType : stimulus type
+t1 = -200;
+t2 = 2500;
+
+%before continuing, reduce the trials to only the ones that have the
+%stimulus
+align = [];
+switch lower(s_type)
+    % do only odor raster
+    case 'odor'
+        trial([trial.laserAmp]>0) = [];
+        trial(strcmpi('none',{trial.odorName}) | strcmpi('empty',{trial.odorName}) | strcmpi('empty',{trial.odorName})| strcmpi('not_an_event',{trial.odorName})) = [];
+        keep.odors      = {trial.odorName};
+        keep.concs      = [trial.odorConc];
+        align = 'sniff';
+        %do only laser raster
+    case {'laser', 'light'}
+        trial([trial.laserAmp]<1) = [];
+        trial( ~(strcmpi('none',{trial.odorName}) | strcmpi('empty',{trial.odorName})...
+            | strcmpi('empty',{trial.odorName}) | strcmpi('not_an_event',{trial.odorName}))) = [];
+        keep.laser_amps = [trial.laserAmp];
+        keep.laser_pows = {trial.laserPower};
+        keep.laser_times = [trial.laserTimes];
+        align = 'laser';
+        %both stimuli present
+    case {'odor_light'}
+        trial([trial.laserAmp]<1) = [];
+        trial(strcmpi('none',{trial.odorName}) | strcmpi('empty',{trial.odorName}) | strcmpi('empty',{trial.odorName}) | strcmpi('not_an_event',{trial.odorName})) = [];
+        keep.odors       = {trial.odorName};
+        keep.concs       = [trial.odorConc];
+        keep.laser_amps  = [trial.laserAmp];
+        keep.laser_pows  = {trial.laserPower};
+        keep.laser_times = [trial.laserTimes];
+        align = 'sniff';
+end
+
+nt=numel(trial);
+if nt<1
+    raster = [];
+    return
+end
+
+trialId = {trial.id};
+tVec = (t1:t2);
+spikes = zeros(nt,length(tVec));
+t0Vec = nan(1,numel(trial));
+x    = zeros(1e5,1);    y    = zeros(1e5,1);
+nsp = 0;
+
+for it = 1:nt
+    %get all the spikes for this unit within the window tVec
+    
+    ii = find(trial(it).sniffZeroTimes(1,:)>trial(it).odorTimes(1)*1.009,1);
+    switch align
+        case 'sniff'
+            if isempty(ii) || ii<1
+                continue
+            end
+            t0 = trial(it).sniffZeroTimes(1,ii) + trial(it).start;
+        case 'laser'
+            t0 = trial(it).laserTimes(1) + trial(it).start;
+            if isempty(ii) || ii<1
+                delay = nan;
+            else
+                delay = trial(it).laserTimes(1) - trial(it).sniffZeroTimes(1,ii);
+            end
+            keep.laserDelay(it) = delay;
+    end
+    
+    spikeTimes = sp((sp>t0+t1)&(sp<t0+t2))-t0;
+    t0Vec(it) = t0;
+    % compact raster
+    n=numel(spikeTimes);
+    x(nsp+(1:n)) = spikeTimes(:);
+    y(nsp+(1:n)) = it*ones(1,n);
+    nsp = nsp + n;
+    if n>0
+        spikes(it,spikeTimes-t1) = 1;
+    end
+end
+x = x(1:nsp);
+y = y(1:nsp);
+
+%     figure
+%     plot(x,y,'.','MarkerSize',7);
+%
+%%%%%%%%%%%%%%%
+
+% keep the fields according to the stim type
+raster         = structfun(@(x) x, keep, 'UniformOutput', false);
+% then add everything else
+raster.trialId = trialId;
+raster.spikes  = spikes;
+raster.t       = tVec;
+raster.t0      = t0Vec;
+%for quick debugging of rasters
+raster.x = x;
+raster.y = y;
+end
+
+
 %%% Script for creating big raster of all the trials for a cell for neil,
 %%% using the trial structure from export_data
 %returns one raster for one particular rec in which the cell appears.
 %unitId is the unit identifier trhough the session.
-
+function [rasters] = just_a_raster_set(mouse,sess,rec,unitSessNumber,sType)
+%for all the sTypes, make the rasters for this cell
+%mouse
+%sess
+%rec
+%unitSessNumber
+%sType          : cell array of stim types. default is {'odor' 'light'
+%'odor_light'}
+if nargin<5 || isempty(sType)
+    sTypes = {'odor' 'light' 'odor_light'};
+end
 %unit is a unit of the type of neil units
 %get the data of the unit, get all the trials the unit is in (from neil
 %trials, and make a raster centered on the first inhale after onset of
 %odor
 %
 %unitNumber is which unit of that rec you want to get the raster.
-fprintf('Making raster for unit %s_%03d_%03d_%s\n',mouse,sess,unitSessNumber,rec)
+fprintf('Making rasters for unit %s_%03d_%03d_%s\n',mouse,sess,unitSessNumber,rec)
 fn = file_names(mouse,sess,rec);
 trial = neil_trial_structure(mouse,sess,rec);
 save(fn.exp_trial);
@@ -211,65 +349,15 @@ thisUnit = unit(unitNumber);
 %the trials in exp are already refined (output of neil_trial_structure)
 %get that trial structure and go trial by trial adding rows to the big
 %raster
-t1 = -3000;
-t2 = 2500;
-
-nt=numel(trial);
-if nt<1
-    raster = [];
-    return
-end
-odors   = {trial.odorName};
-concs   = [trial.odorConc];
-trialId = {trial.id};
-tVec = (t1:t2);
-spikes = zeros(nt,length(tVec));
-t0Vec = nan(1,numel(trial));
-sp = round(thisUnit.times);
-
-x    = zeros(1e5,1);    y    = zeros(1e5,1);
-nsp = 0;
-
-for it = 1:nt
-    %get all the spikes for this unit within the window tVec
-    ii = find(trial(it).sniffZeroTimes(1,:)>trial(it).odorTimes(1)*1.009,1);
-    if isempty(ii) || ii<1
-        continue
-    end
-    t0 = trial(it).sniffZeroTimes(1,ii) + trial(it).start;
-    spikeTimes = sp((sp>t0+t1)&(sp<t0+t2))-t0;
-    t0Vec(it) = t0;
-    
-    % compact raster
-    n=numel(spikeTimes);
-    x(nsp+(1:n)) = spikeTimes(:);
-    y(nsp+(1:n)) = it*ones(1,n);
-    nsp = nsp + n;
-    if n>0
-        spikes(it,spikeTimes-t1) = 1;
+for i=1:numel(sTypes)
+    sType = sTypes{i};
+    a_raster = do_raster(trial, round(thisUnit.times),sType);
+    if ~isempty(a_raster)
+        a_raster.rec     = rec;
+        a_raster.cell    = thisCell;
+        rasters.(sType) = a_raster;
     end
 end
-x = x(1:nsp);
-y = y(1:nsp);
-
-%     figure
-%     plot(x,y,'.','MarkerSize',7);
-%
-%%%%%%%%%%%%%%%
-% Add cellId?  mouse_sess_rec_int --> int=unique integer of cell
-%                                         in session from unitDb
-raster.odors   = odors;
-raster.concs   = concs;
-raster.trialId = trialId;
-raster.spikes  = spikes;
-raster.t       = tVec;
-raster.t0      = t0Vec;
-raster.rec     = rec;
-raster.cell    = thisCell;
-
-%for quick debugging of rasters
-raster.x = x;
-raster.y = y;
 
 end
 
@@ -363,32 +451,44 @@ load(fn.sess_info);
 recInfo =  info.rec(strcmpi(rec,{info.rec.name}));
 rsmSniff = load(fn.rsm_data,'Sniff');
 
-%pick only the odor trials
-trial(strcmpi({'none'},{trial.odorName}))=[];
-trial(strcmpi({'empty'},{trial.odorName}))=[];
-t1 = -3000;
+%pick all the trials and get odor, laser and sniff info.
+%this will be used to produce the rasters for light, odor and light+odor
+%trials
+
+t1 = -200;
 t2 = 2500-1;
 
 trials = [];
 for it=1:numel(trial)
     ttr = trial(it);
     tr.start      = ttr.start+t1;
-    if isempty(tr.start) || ttr.start+t1<0 || ttr.odorTimes(1)<=0
+    if isempty(tr.start) || isnan(ttr.start) || ttr.start+t1<1
         continue
     end
     tVec          = ttr.start + (t1:t2-1); %absolute times of the trial chunk
     tr.id         = sprintf('%s_%03d_%s_%d',mouse,sess,rec,ttr.start);
     tr.odorName   = ttr.odorName;
     tr.odorConc   = ttr.odorConc;
+    %laser data
+    tr.laserAmp   = ttr.laserAmp;
+    tr.laserPower = ttr.laserPower;
+    tr.laserTimes = ttr.laserTimes-t1;
+    
+    %the cutout of the sniff trace
+    try
     tr.flow       = rsmSniff.Sniff(tVec);
+    catch me
+        warning('bad sniff extract')
+    end
     %the stimulus vector
     tr.stim       = zeros(1,t2-t1);
     tr.odorTimes  = ttr.odorTimes - t1 ;
     stimTimes  = tr.odorTimes;
     stimTimes([tr.odorTimes]>t2-t1)=t2-t1;
     stimTimes([tr.odorTimes]<0)=0;
-    tr.stim(stimTimes(1):stimTimes(2))=1;
-    
+    if all(stimTimes>0)
+        tr.stim(stimTimes(1):stimTimes(2))=1;
+    end
     %the sniff zero times
     %     if it==105
     %     disp(it)
