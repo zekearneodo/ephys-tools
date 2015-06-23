@@ -302,6 +302,8 @@ raster.spikes  = spikes;
 raster.t       = tVec;
 raster.t0      = t0Vec;
 %for quick debugging of rasters
+raster.t1      = t1;
+raster.t2      = t2;
 raster.x = x;
 raster.y = y;
 end
@@ -434,7 +436,8 @@ raster.sess    = sess;
 raster.rec     = rec;
 raster.uid     = thisCell.uId;
 raster.t0      = t0Vec;
-
+raster.t1      = t1;
+raster.t2      = t2;
 %for quick debugging of rasters
 %raster.x = x;
 %raster.y = y;
