@@ -36,8 +36,8 @@
       <file leaf-file-name="unitToolsv2.py" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/unitToolsv2.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="-11.92" vertical-offset="1232" max-vertical-offset="4710">
-              <caret line="102" column="0" selection-start-line="102" selection-start-column="0" selection-end-line="102" selection-end-column="0" />
+            <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="4710">
+              <caret line="19" column="0" selection-start-line="19" selection-start-column="0" selection-end-line="19" selection-end-column="0" />
               <folding>
                 <element signature="e#324#353#0" expanded="true" />
               </folding>
@@ -45,11 +45,33 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="data_load.py" pinned="false" current="true" current-in-tab="true">
+      <file leaf-file-name="file_structure.py" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/data_handling/file_structure.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="915">
+              <caret line="29" column="16" selection-start-line="29" selection-start-column="16" selection-end-line="29" selection-end-column="16" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="stimulus.py" pinned="false" current="true" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/analysis/stimulus.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.55914766" vertical-offset="499" max-vertical-offset="1950">
+              <caret line="84" column="49" selection-start-line="84" selection-start-column="41" selection-end-line="84" selection-end-column="49" />
+              <folding>
+                <element signature="e#0#18#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="data_load.py" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/data_handling/data_load.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.92140716" vertical-offset="3854" max-vertical-offset="5220">
-              <caret line="339" column="0" selection-start-line="339" selection-start-column="0" selection-end-line="339" selection-end-column="0" />
+            <state vertical-scroll-proportion="-16.074074" vertical-offset="1456" max-vertical-offset="5445">
+              <caret line="126" column="29" selection-start-line="126" selection-start-column="19" selection-end-line="126" selection-end-column="29" />
               <folding>
                 <element signature="e#49#67#0" expanded="true" />
               </folding>
@@ -60,8 +82,8 @@
       <file leaf-file-name="basic_plot.py" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/data_handling/basic_plot.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="-37.8" vertical-offset="0" max-vertical-offset="1335">
-              <caret line="63" column="60" selection-start-line="63" selection-start-column="60" selection-end-line="63" selection-end-column="60" />
+            <state vertical-scroll-proportion="0.0" vertical-offset="844" max-vertical-offset="2205">
+              <caret line="141" column="0" selection-start-line="141" selection-start-column="0" selection-end-line="141" selection-end-column="0" />
               <folding>
                 <element signature="e#20#38#0" expanded="true" />
               </folding>
@@ -136,14 +158,15 @@
         <option value="$USER_HOME$/Desktop/ephysDataManagement/ephysScripts/data_handling/ephys_names.py" />
         <option value="$PROJECT_DIR$/../current/kk2_unpack.py" />
         <option value="$PROJECT_DIR$/getunits.py" />
-        <option value="$PROJECT_DIR$/data_handling/basic_plot.py" />
         <option value="$PROJECT_DIR$/data_handling/data_load.py" />
+        <option value="$PROJECT_DIR$/data_handling/basic_plot.py" />
+        <option value="$PROJECT_DIR$/analysis/stimulus.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="2098" />
-    <option name="y" value="4" />
+    <option name="x" value="1915" />
+    <option name="y" value="11" />
     <option name="width" value="1823" />
     <option name="height" value="1489" />
   </component>
@@ -180,6 +203,52 @@
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="ephysScripts">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT USER_OBJECT="Root">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="ephysScripts">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="post_sort">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT USER_OBJECT="Root">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="ephysScripts">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="data_handling">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT USER_OBJECT="Root">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="ephysScripts">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="analysis">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
           </PATH>
         </subPane>
       </pane>
@@ -207,7 +276,7 @@
   </component>
   <component name="PropertiesComponent">
     <property name="last_opened_file_path" value="/usr/local/anaconda/lib/python2.7/site-packages/klustaviewa-0.3.0rc1-py2.7-linux-x86_64.egg/spikedetekt2/core/script.py" />
-    <property name="options.lastSelected" value="appearance" />
+    <property name="options.lastSelected" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
     <property name="options.splitter.main.proportions" value="0.3" />
     <property name="options.splitter.details.proportions" value="0.2" />
     <property name="options.searchVisible" value="true" />
@@ -229,8 +298,8 @@
       <recent name="$PROJECT_DIR$/post_sort" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/data_handling" />
       <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/data_handling" />
     </key>
   </component>
   <component name="RunManager" selected="Python.getunits">
@@ -519,7 +588,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="2098" y="4" width="1823" height="1489" extended-state="1" />
+    <frame x="1915" y="11" width="1823" height="1489" extended-state="1" />
     <editor active="true" />
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -590,17 +659,11 @@
     </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/unitTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0" vertical-offset="691" max-vertical-offset="3630">
-          <caret line="58" column="28" selection-start-line="58" selection-start-column="18" selection-end-line="58" selection-end-column="28" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/data_handling/file_structure.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="300" max-vertical-offset="495">
           <caret line="20" column="0" selection-start-line="20" selection-start-column="0" selection-end-line="20" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -648,6 +711,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="405" max-vertical-offset="495">
           <caret line="27" column="0" selection-start-line="27" selection-start-column="0" selection-end-line="27" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -797,13 +861,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/data_handling/file_structure.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="915">
-          <caret line="4" column="1" selection-start-line="4" selection-start-column="1" selection-end-line="4" selection-end-column="1" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/Desktop/ephysDataManagement/zk/pca_filter.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="814" max-vertical-offset="1725">
@@ -950,30 +1007,48 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/unitToolsv2.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="-11.92" vertical-offset="1232" max-vertical-offset="4710">
-          <caret line="102" column="0" selection-start-line="102" selection-start-column="0" selection-end-line="102" selection-end-column="0" />
+        <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="4710">
+          <caret line="19" column="0" selection-start-line="19" selection-start-column="0" selection-end-line="19" selection-end-column="0" />
           <folding>
             <element signature="e#324#353#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/data_handling/file_structure.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="915">
+          <caret line="29" column="16" selection-start-line="29" selection-start-column="16" selection-end-line="29" selection-end-column="16" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/data_handling/data_load.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="-16.074074" vertical-offset="1456" max-vertical-offset="5445">
+          <caret line="126" column="29" selection-start-line="126" selection-start-column="19" selection-end-line="126" selection-end-column="29" />
+          <folding>
+            <element signature="e#49#67#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/data_handling/basic_plot.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="-37.8" vertical-offset="0" max-vertical-offset="1335">
-          <caret line="63" column="60" selection-start-line="63" selection-start-column="60" selection-end-line="63" selection-end-column="60" />
+        <state vertical-scroll-proportion="0.0" vertical-offset="844" max-vertical-offset="2205">
+          <caret line="141" column="0" selection-start-line="141" selection-start-column="0" selection-end-line="141" selection-end-column="0" />
           <folding>
             <element signature="e#20#38#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/data_handling/data_load.py">
+    <entry file="file://$PROJECT_DIR$/analysis/stimulus.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.92140716" vertical-offset="3854" max-vertical-offset="5220">
-          <caret line="339" column="0" selection-start-line="339" selection-start-column="0" selection-end-line="339" selection-end-column="0" />
+        <state vertical-scroll-proportion="0.55914766" vertical-offset="499" max-vertical-offset="1950">
+          <caret line="84" column="49" selection-start-line="84" selection-start-column="41" selection-end-line="84" selection-end-column="49" />
           <folding>
-            <element signature="e#49#67#0" expanded="true" />
+            <element signature="e#0#18#0" expanded="true" />
           </folding>
         </state>
       </provider>
