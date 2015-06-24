@@ -119,12 +119,12 @@ def load_trials(mat_file_path, as_dict = True):
                   'mouse'      : rec_id.split('_')[0],
                   'rec'        : rec_id.split('_')[2],
                   'sess'       : int(float(rec_id.split('_')[1])),
-                  'start'      : [x.start for x in trial_data['trial']],
+                  'start'      : np.array([x.start for x in trial_data['trial']], dtype=np.int),
                   'odor'       : [str(x.odorName) for x in trial_data['trial']],
-                  'odor_c'     : [x.odorConc for x in trial_data['trial']],
-                  'odor_t'     : [x.odorTimes for x in trial_data['trial']],
-                  'sniff_flow' : [x.flow for x in trial_data['trial']],
-                  'sniff_zero' : [x.sniffZeroTimes for x in trial_data['trial']]
+                  'odor_c'     : np.array([x.odorConc for x in trial_data['trial']], dtype=np.float),
+                  'odor_t'     : np.array([x.odorTimes for x in trial_data['trial']], dtype=np.int),
+                  'sniff_flow' : np.array([x.flow for x in trial_data['trial']], dtype=np.float),
+                  'sniff_zero' : ([x.sniffZeroTimes for x in trial_data['trial']])
                   }
     if as_dict:
         return {trials['rec_id'] : trials}
@@ -136,9 +136,9 @@ def get_rec(rec):
     cell_data = rec.cell
     cell_odor_resp = {'odors'  : [ str(t) for t in rec.odors],
                       'trialId': [ str(t) for t in rec.trialId],
-                      'concs'  : [ t for t in rec.concs],
+                      'concs'  : np.array(rec.concs, dtype=np.float),
                       'spikes' : np.array(rec.spikes, dtype=np.float),
-                      't_0'    : np.array(rec.t0, dtype = np.float),
+                      't_0'    : np.array(rec.t0, dtype=np.int),
                       't_1'    : rec.t1,
                       't_2'    : rec.t2
                       }
@@ -232,7 +232,7 @@ def load_cells(cells_path=''):
     #rec related dictionaries
     rec_trials = {} # the trial structures of every rec instance
     baselines  = {} # the baselines of every cell; keys of dict are record[i]['meta']['id']
-    base_sniff = {} # the sniff baselines
+    base_sniff = {} # the sniff baselinesa
     #dictionary of rec related data to load
     #'key' : [dict of the loaded data, 'tail of the filenames', loading function]
     rec_data = {'rec_trials' : [rec_trials, '_trial.mat', load_trials],
