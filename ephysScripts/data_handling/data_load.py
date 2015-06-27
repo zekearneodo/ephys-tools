@@ -343,15 +343,15 @@ def cells_by_single_tag(responses, tag, value):
     return filtered
 
 #filter responses by the value of a series of meta tags
-def cells_by_tag(responses, **kwargs):
+def cells_by_tag(responses, tags):
     #filter response by a series of 'tag'=value
-    if kwargs is not None:
+    if tags is not None:
         filtered = responses
-        for key, value in kwargs.iteritems():
+        for key, value in tags.iteritems():
             filtered = cells_by_single_tag(filtered, key, value)
         return filtered
     else:
-        return None
+        return responses
 
 #filter responses by the value of a single meta tag
 def conc_compare(conc1, conc2, tolerance=1.5):

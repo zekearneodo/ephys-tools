@@ -34,10 +34,15 @@ import stimulus as st
 
 
 def main(argv):
-    a=en.file_names('ZKawakeM72',1,'a', root='/tumama')
+    a=en.file_names('ZKawakeM72', 1, 'a', root='/tumama')
     print a
 
-    st_1 = st.Stimulus()
+    high_2hydroxy = st.Odor(['2-hydroxyacetophenone','2hydroxyacetophenone'], 0.0051)
+
+
+    st_1 = st.Stimulus(high_2hydroxy, tags={'light':1, 'odor':1})
+
+    print st_1.responsive_records.keys()
 
     return
 

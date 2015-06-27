@@ -21,7 +21,7 @@ from sys import stdout
 
 class file_names:
 
-    def __init__(self,mouse,sess,rec='',run=0,root=''):
+    def __init__(self, mouse=None, sess=0, rec='', run=0, root=''):
 
         #empty rec and 0 run mean no specified, default is not to set names
 
@@ -37,38 +37,54 @@ class file_names:
         #for instance, check if configFile or computerName were entered
 
         self.root = file_structure.get_root(in_root=root)
-
+        self.get_root_file_names()
+        self.get_mouse_file_names()
         self.get_sess_file_names(sess)
         self.get_rec_file_names(rec)
         self.get_run_file_names(run)
         return
 
+    def get_root_file_names(self):
+
+        self.fold_rd_data  = path.join(self.root, 'raw_data')
+        self.fold_ss_data  = path.join(self.root, 'ss_data')
+        self.fold_pr_data  = path.join(self.root, 'pr_data')
+        self.fold_an_data  = path.join(self.root, 'an_data')
+        self.fold_exp_data = path.join(self.root, 'export_data')
+        self.fold_unit_db  = path.join(self.root, 'units')
+        self.fold_st_meta  = path.join(self.root, 'stimuli')
+        self.fold_config   = path.join(self.root, 'SpikeGl_config')
+        self.fold_prb      = path.join(self.root, 'probe_definitions')
+
+        return
+
+    def get_mouse_file_names(self):
+
+        self.get_root_file_names()
+        if self.mouse is not None:
+            self.fold_rd_mouse = path.join(self.fold_rd_data,'mouse_{0}'.format(self.mouse))
+            self.fold_an_mouse = path.join(self.root,'an_data','mouse_{0}'.format(self.mouse))
+
+
     def get_sess_file_names(self,sess):
 
-        self.sess_str = str(sess).zfill(3)
+        if sess > 0:
+            self.get_mouse_file_names()
 
-        self.fold_rd_data  = path.join(self.root,'raw_data')
-        self.fold_ss_data  = path.join(self.root,'ss_data')
-        self.fold_pr_data  = path.join(self.root,'pr_data')
-        self.fold_an_data  = path.join(self.root,'an_data')
-        self.fold_exp_data = path.join(self.root,'export_data')
-        self.fold_unit_db  = path.join(self.root,'units')
-        self.fold_st_meta  = path.join(self.root,'stimuli')
-        self.fold_config   = path.join(self.root,'SpikeGl_config')
-        self.fold_prb      = path.join(self.root,'probe_definitions')
+            self.sess_str = str(sess).zfill(3)
+            self.fold_rd_sess  = path.join(self.fold_rd_mouse,'sess_{0}'.format(self.sess_str))
+            self.log           = path.join(self.fold_rd_sess,'log_{0}_{1}.txt'.format(self.mouse,self.sess_str))
 
-        self.fold_rd_mouse = path.join(self.fold_rd_data,'mouse_{0}'.format(self.mouse))
-        self.fold_rd_sess  = path.join(self.fold_rd_mouse,'sess_{0}'.format(self.sess_str))
-        self.log           = path.join(self.fold_rd_sess,'log_{0}_{1}.txt'.format(self.mouse,self.sess_str))
-
-        self.fold_ss_sess    = path.join(self.fold_ss_data,'ss_{0}_{1}'.format(self.mouse,self.sess_str))
-        self.fold_pr_sess    = path.join(self.fold_pr_data,'m{0}_{1}'.format(self.mouse,self.sess_str))
-        self.fold_sess_info  = path.join(self.fold_ss_sess,'{0}_{1}_sess_info.mat'.format(self.mouse,self.sess_str))
-        self.sess_info       = path.join(self.fold_pr_sess,'{0}_{1}_sess_info.mat'.format(self.mouse,self.sess_str))
-        self.clInfo_file     = path.join(self.fold_pr_sess,'{0}_{1}_cl_info.mat'.format(self.mouse,self.sess_str))
+            self.fold_ss_sess    = path.join(self.fold_ss_data,'ss_{0}_{1}'.format(self.mouse,self.sess_str))
+            self.fold_pr_sess    = path.join(self.fold_pr_data,'m{0}_{1}'.format(self.mouse,self.sess_str))
+            self.fold_sess_info  = path.join(self.fold_ss_sess,'{0}_{1}_sess_info.mat'.format(self.mouse,self.sess_str))
+            self.sess_info       = path.join(self.fold_pr_sess,'{0}_{1}_sess_info.mat'.format(self.mouse,self.sess_str))
+            self.clInfo_file     = path.join(self.fold_pr_sess,'{0}_{1}_cl_info.mat'.format(self.mouse,self.sess_str))
         return
 
     def get_rec_file_names(self,rec):
+
+        self.get_sess_file_names(self.sess)
 
         if rec:
             self.rec=rec
@@ -86,14 +102,11 @@ class file_names:
             self.evt_m       = path.join(self.fold_pr_sess,'{0}_{1}_{2}_event.mat'.format(self.mouse,self.sess_str,rec))
             self.evt_h       = path.join(self.fold_pr_sess,'{0}_{1}_{2}_event.h5'.format(self.mouse,self.sess_str,rec))
 
-            self.fold_an_mouse = path.join(self.root,'an_data','mouse_{0}'.format(self.mouse))
             self.fold_an_sess  = path.join(self.fold_an_mouse,'sess_{0}'.format(self.sess_str))
             self.basename_an   = '{0}_{1}_{2}_'.format(self.mouse,self.sess_str,rec)
             self.exp_spikes    = path.join(self.fold_exp_data,'{0}_{1}_{2}_spikes.mat'.format(self.mouse,self.sess_str,rec))
-
         return
 
     def get_run_file_names(self,run):
+
         return
-
-

@@ -136,6 +136,6 @@ def get_odor_trials(response, odor_alias=[], conc=0.):
     this_odor_conc = [i for i in range(len(response['odors'])) if response['odors'][i].lower() in odor_alias]
 
     if not conc == 0.:
-        this_odor_conc = [i_o for i_o in this_odor_conc if conc_compare(response['concs'][i_o], odor_conc)]
+        this_odor_conc = [i_o for i_o in this_odor_conc if conc_compare(response['concs'][i_o], conc)]
 
     return this_odor_conc
