@@ -21,6 +21,8 @@ cn.assemble_baseline_trial_tructure = @assemble_baseline_trial_tructure;
 cn.assemble_baseline_trial_tructure_zk = @assemble_baseline_trial_tructure_zk;
 cn.assemble_baseline = @assemble_baseline;
 
+cn.no_stim_sniffs_raster = @no_stim_sniffs_raster;
+
 if nargin>0 && doit==1
     ffn=file_names();
     % load all cells in a cell structure
@@ -39,14 +41,19 @@ if nargin>0 && doit==1
     keepCells1 = zeros(1,numel(cellsArray));
     keepCells2 = zeros(1,numel(cellsArray));
     %filter the cells by session (knowing when the experiments begun)
-    %concentration:
-            keepCells1 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]>3 & [cellsArray.sess]< 15 | [cellsArray.sess]==914)...
-                | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>13 & [cellsArray.sess]<17);
+    %affinity:
+    keepCells1 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]>3 & [cellsArray.sess]< 15 | [cellsArray.sess]==914)...
+        | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>13 & [cellsArray.sess]<17);
     %concentration:
     keepCells2 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17 & [cellsArray.sess]< 28 ...
         | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17);
     
     keepCells = keepCells1 + keepCells2;
+    
+    %for neil debugging:
+    keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]==13
+    %
+    
     cellsArray(~keepCells)=[];
     cellsArray(~([cellsArray.quality]==1))=[];
     %cellsArray(~([cellsArray.light]==1))=[];
@@ -54,6 +61,7 @@ if nargin>0 && doit==1
     %with the cells selected, make all the units and place them ein the
     %export_data folder
     %units_meta(cellsArray);
+    
     % now go through all those cells and:
     % - find them in all the recs they appear in
     % - make the raster for every rec
@@ -196,6 +204,11 @@ for ic = 1:numel(cells_uId)
     %save the baseline
     baseFn = fullfile(fn.fold_exp_data,sprintf('%s_spikesBase.mat',one_cell.uid));
     save(baseFn,'spikesBase');
+    
+    %make the no stim sniff structure and save it
+    noStimSniffs = no_stim_sniffs_raster(this_cell_instances(1));
+    noStimFn = fullfile(fn.fold_exp_data,sprintf('%s_noStimSniff.mat',one_cell.uid));
+    save(noStimFn, 'noStimSniffs');
 end
 
 end
@@ -324,6 +337,7 @@ function [rasters] = just_a_raster_set(mouse,sess,rec,unitSessNumber,sType)
 if nargin<5 || isempty(sType)
     sTypes = {'odor' 'light' 'odor_light'};
 end
+sTypes = {'odor'};
 %unit is a unit of the type of neil units
 %get the data of the unit, get all the trials the unit is in (from neil
 %trials, and make a raster centered on the first inhale after onset of
@@ -333,7 +347,13 @@ end
 fprintf('Making rasters for unit %s_%03d_%03d_%s\n',mouse,sess,unitSessNumber,rec)
 fn = file_names(mouse,sess,rec);
 trial = neil_trial_structure(mouse,sess,rec);
-save(fn.exp_trial);
+
+if all(strcmpi(sTypes,{'odor'}))
+    non_odor_trials = (cellfun(@(x) any(strcmpi(x, {'none', 'empty', 'not-an-event', 'dummy'})),{trial.odorName}));
+    trial(non_odor_trials)=[];
+end
+
+save(fn.exp_trial,'trial');
 load(fn.exp_spikes);
 
 %meta data
@@ -386,8 +406,8 @@ thisUnit = unit(unitNumber);
 %the trials in exp are already refined (output of neil_trial_structure)
 %get that trial structure and go trial by trial adding rows to the big
 %raster
-t1 = -500;
-t2 = 2500;
+t1 = 1;
+t2 = 3000;
 
 nt=numel(trial);
 if nt<1
@@ -439,8 +459,8 @@ raster.t0      = t0Vec;
 raster.t1      = t1;
 raster.t2      = t2;
 %for quick debugging of rasters
-%raster.x = x;
-%raster.y = y;
+raster.x = x;
+raster.y = y;
 
 end
 
@@ -578,24 +598,28 @@ badSniffs = 0;
 %get all the sniffs that are before an open valve
 eventOnTimes = [fvOnTimes(:,1)];
 for ifv=1:numel(eventOnTimes)
-    
+    %for now, forget about the sniff zeros and such
+    %just use the time stamps of the fv opening to chop the sniff
     
     %find the sinff before a trial, light or odor
-    prev_sniff = find([sniff.t0]< eventOnTimes(ifv,1)-3000,1,'last');
-    if(isempty(prev_sniff))
-        continue
-    end
+%     prev_sniff = find([sniff.t0]< eventOnTimes(ifv,1)-3000,1,'last');
+%     if(isempty(prev_sniff))
+%         continue
+%     end
+%     sn=sniff(prev_sniff);
+    %t_inh = sn.t0+sn.t_zer(1);
     
-    sn=sniff(prev_sniff);
-    t_inh = sn.t0+sn.t_zer(1);
-    t1= -500;
-    t2= 2500-1;
+    t_inh = eventOnTimes(ifv,1);
+    t1= -3000;
+    t2= 0;
     
     % is a sniff not within a stimulus
-    sn_zeros = sn.t_zer - (150+t1);
+    %sn_zeros = sn.t_zer - (150+t1);
+    
     tr.start = t_inh +t1;
     
-    if any(sn_zeros(2:3)<1) || (t_inh + t2) > numel(SniffTrace)
+    %if any(sn_zeros(2:3)<1) || (t_inh + t2) > numel(SniffTrace)
+    if (t_inh + t2) > numel(SniffTrace)
         %warning('problem with sniff zeros at sn.t0 %d',sn.t0)
         badSniffs = badSniffs+1;
         continue
@@ -604,13 +628,15 @@ for ifv=1:numel(eventOnTimes)
     try
         tr.sniffFlow = SniffTrace(tr.start:t_inh+t2);
     catch me
-        warning('sniff begins too early or ends too late for chopping the right segment around it (sniff %d)',prev_sniff);
+        warning('sniff begins too early or ends too late for chopping the right segment around it (sniff %d)',ifv);
         continue;
     end
-    tr.sniffPhase = ones(size(tr.sniffFlow));
-    tr.sniffPhase(1:-t1)=-1;
-    tr.sniffPhase(sn_zeros(2):sn_zeros(3)) = -1;
+    %tr.sniffPhase = ones(size(tr.sniffFlow));
+    %tr.sniffPhase(1:-t1)=-1;
+    %tr.sniffPhase(sn_zeros(2):sn_zeros(3)) = -1;
     trialsBase = [trialsBase tr];
+    
+    %if it got sniff, 
     
     %for debugging
     %         figure
@@ -652,7 +678,7 @@ for itr=1:numel(trial)
             sniffZeros_toUse(2,:) = round(tr.sniffParabZeroTimes(2,:));
             sniffZeros_toUse(1,:) = tr.sniffZeroTimes(1,:);
         else
-            itr
+            disp(itr)
             error('sniff zeros and parabs are not same length')
         end
         
@@ -881,5 +907,16 @@ end
         end
     end
 end
+
+function [noStimSniffs] = no_stim_sniffs_raster(unit_meta)
+% get the sniffs with no stimulus.
+% save the sniff traces, the inhales and exhales ref. to the beginning of
+% the rec.
+
+cp = cell_passport_tools();
+noStimSniffs = cp.get_no_stim_sniffs(unit_meta);
+
+end
+
 
 

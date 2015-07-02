@@ -423,7 +423,7 @@ for ks = 1:numel(stim)
     if ~any(strcmpi(stim(ks).odorName,{'none','dummy'}))
         vp.responseWindow=mean(inhLenStim);
     else
-        vp.responseWindow=responseWindowDefault;
+        vp.responseWindow=400;
     end
     timeObs=t1+1:t2;
     responseWindow=vp.responseWindow;
