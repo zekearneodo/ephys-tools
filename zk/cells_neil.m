@@ -60,7 +60,7 @@ if nargin>0 && doit==1
     % now you got an array of cells for the suffixes
     %with the cells selected, make all the units and place them ein the
     %export_data folder
-    %units_meta(cellsArray);
+    units_meta(cellsArray);
     
     % now go through all those cells and:
     % - find them in all the recs they appear in
@@ -193,6 +193,12 @@ for ic = 1:numel(cells_uId)
                 one_cell.(write_field) = [one_cell.(write_field) raster.(read_field)];
             end
         end
+        
+        %make the no stim sniff structure and save it
+        noStimSniff = no_stim_sniffs_raster(x);
+        fn=file_names(x.mouse,x.sess,x.rec);
+        noStimFn = fullfile(fn.fold_exp_data,sprintf('%snoStimSniff.mat',fn.basename_an));
+        save(noStimFn, 'noStimSniff');
 
     end
     
@@ -205,10 +211,6 @@ for ic = 1:numel(cells_uId)
     baseFn = fullfile(fn.fold_exp_data,sprintf('%s_spikesBase.mat',one_cell.uid));
     save(baseFn,'spikesBase');
     
-    %make the no stim sniff structure and save it
-    noStimSniffs = no_stim_sniffs_raster(this_cell_instances(1));
-    noStimFn = fullfile(fn.fold_exp_data,sprintf('%s_noStimSniff.mat',one_cell.uid));
-    save(noStimFn, 'noStimSniffs');
 end
 
 end

@@ -32,6 +32,9 @@ function [trial_numbers, events_list] = make_tables(mouse,sess,rec,run)
 %make all the event tables for a run
 %these tables will be then gathered and put together in a table for each
 %rec
+if strcmp(mouse,'KPawakem72')
+    mouse='KPawakeM72';
+end
 
 %where words is a structure containing the bytes.
 ev = struct('event',[],'type',[],'chanId',[],'evtFcn',[]);
@@ -294,8 +297,12 @@ figsOn=inPar.Results.figures;
 eventChanName=inPar.Results.chanName;
 
 %get the info for the rec and for the run
+if strcmp(mouse,'KPawakem72')
+    mouse='KPawakeM72';
+end
 fn = file_names(mouse, sess,rec);
 q = load(fn.ss_sess_info);
+
 recInfo = q.info.rec(strcmpi(rec,{q.info.rec.name}));
 runInfo = recInfo.run([recInfo.run.num]==irun);
 

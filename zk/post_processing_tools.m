@@ -100,6 +100,7 @@ fn  = file_names(mouse, sess)
 fprintf('MOUSE %s - SESS %s\n',fn.mouse,fn.sess)
 fprintf('============================================================\n')
 q   = load(fn.sess_info);
+
 info = q.info;
 rec  = info.rec;
 %rec=rec(3);

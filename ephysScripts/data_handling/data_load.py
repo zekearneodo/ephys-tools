@@ -107,13 +107,55 @@ def load_baseline(mat_file_path, as_dict = True):
         baselines_list = [baselines[a_key] for a_key in baselines.keys()]
         return baselines_list
 
+#Load a sniff file into a rec array
+def load_sniffs(mat_file_path, as_dict = True):
+    print mat_file_path
+    assert(os.path.isfile(mat_file_path))
+    struct_name = os.path.split(mat_file_path)[-1].split('.')[0].split('_')[-1]
+    sniff_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
+
+    if type(sniff_data[struct_name]) == np.ndarray:
+        #if there are many sniffs
+        num_sniffs = sniff_data[struct_name].shape[0]
+        sniffs = np.zeros((num_sniffs,), dtype=np.dtype([('flow', np.ndarray),
+                                                           ('t_0', np.int),
+                                                           ('t_zer', np.ndarray),
+                                                           ('t_zer_fit',np.ndarray)]))
+        i_sniff = 0
+        for sniff_struct in  sniff_data[struct_name]:
+            sniffs[i_sniff]['flow'] = np.array(sniff_struct.waveform, dtype=np.float)
+            sniffs[i_sniff]['t_0'] = sniff_struct.t0
+            sniffs[i_sniff]['t_zer'] = np.array(sniff_struct.t_zer, dtype=np.int)
+            sniffs[i_sniff]['t_zer_fit'] = np.array(sniff_struct.t_zer_fit, dtype=np.float)
+            i_sniff+=1
+
+    else:
+        sniffs = None
+
+    if as_dict:
+        rec_id = ""
+        for i in os.path.split(mat_file_path)[-1].split('_')[0:3]:
+            rec_id += str(i) + "_"
+        rec_id = rec_id[:-1]
+        return {rec_id : sniffs}
+    else:
+        return sniffs
+
+# load the units of a rec
+def load_spikes(mat_file_path, as_dict = True):
+    assert(os.path.isfile(mat_file_path))
+    print (mat_file_path)
+    trial_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
+    #get the rec_id, mouse, rec, sess from the file name
+    rec_id = os.path.split(mat_file_path)[-1].split('trial.mat')[0][:-1]
+
 # load trials file
 def load_trials(mat_file_path, as_dict = True):
     assert(os.path.isfile(mat_file_path))
     print (mat_file_path)
     trial_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
     #get the rec_id, mouse, rec, sess from the file name
-    rec_id = os.path.split(mat_file_path)[-1].split('trial.mat')[0][:-1]
+    rec_id = os.path.split(mat_file_path)[-1].split('spikes.mat')[0][:-1]
 
     trials     = {'rec_id'     : rec_id,
                   'mouse'      : rec_id.split('_')[0],
@@ -219,10 +261,8 @@ def load_unit(mat_file_path, as_dict=True):
 # get all units that have records, and get the corresponding trials, baselines and baseline sniffs.
 def load_cells(cells_path=''):
     """
-
     :param cells_path: folder with the exportable matlab files. default is taken from fn.fold_exp_data
     :return: records (list of all the records of all the cells)
-
     """
     all_cells = [f for f in os.listdir(cells_path) if os.path.isfile(os.path.join(cells_path,f)) ]
     unit_files = [f for f in all_cells if f.find('cell.mat')>0]
@@ -236,7 +276,7 @@ def load_cells(cells_path=''):
     #dictionary of rec related data to load
     #'key' : [dict of the loaded data, 'tail of the filenames', loading function]
     rec_data = {'rec_trials' : [rec_trials, '_trial.mat', load_trials],
-                'base_sniff' : [base_sniff, '_trialsBase.mat', load_sniff_base]
+                'base_sniff' : [base_sniff, '_noStimSniff.mat', load_sniffs],
                 }
 
     #unit related dictionaries
@@ -280,7 +320,7 @@ def load_cells(cells_path=''):
 
             paths = [os.path.join(cells_path, a_rec['rec_id'] + load_name_tail) \
                      for a_rec in unit_recs.itervalues() if a_rec['rec_id'] not in load_dict]
-            #print paths
+            print paths
             [load_dict.update(load_function(a_path)) for a_path in paths]
 
     records = {'responses':  responses,
