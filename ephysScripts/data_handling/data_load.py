@@ -141,13 +141,15 @@ def load_sniffs(mat_file_path, as_dict = True):
     else:
         return sniffs
 
-# load the units of a rec
+# load the spikes of a unit (for a given rec)
 def load_spikes(mat_file_path, as_dict = True):
     assert(os.path.isfile(mat_file_path))
     print (mat_file_path)
-    trial_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
-    #get the rec_id, mouse, rec, sess from the file name
-    rec_id = os.path.split(mat_file_path)[-1].split('trial.mat')[0][:-1]
+    spike_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
+    spikes_loaded = spike_data['thisUnit']
+    return np.array(spikes_loaded.times, dtype=np.float)
+
+
 
 # load trials file
 def load_trials(mat_file_path, as_dict = True):
@@ -155,7 +157,7 @@ def load_trials(mat_file_path, as_dict = True):
     print (mat_file_path)
     trial_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
     #get the rec_id, mouse, rec, sess from the file name
-    rec_id = os.path.split(mat_file_path)[-1].split('spikes.mat')[0][:-1]
+    rec_id = os.path.split(mat_file_path)[-1].split('trial.mat')[0][:-1]
 
     trials     = {'rec_id'     : rec_id,
                   'mouse'      : rec_id.split('_')[0],
@@ -208,6 +210,7 @@ def get_rec(rec):
 def load_cell(mat_file_path, as_dict = False):
     assert(os.path.isfile(mat_file_path))
     cell_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
+    exp_data_path = os.path.split(mat_file_path)[0]
 
     records = []
     #print type(cell_data['raster'])
@@ -218,6 +221,8 @@ def load_cell(mat_file_path, as_dict = False):
         for rec in  cell_data['raster']:
             #print rec
             record = get_rec(rec)
+            spikes_file_path = os.path.join(exp_data_path, record['meta']['id'] + '_spikes.mat')
+            record.update({'all_spikes' : load_spikes(spikes_file_path)})
             records.append(record)
     else:
         records.append(get_rec(cell_data['raster']))

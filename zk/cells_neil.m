@@ -365,6 +365,10 @@ cellsOfRec =cellsArray( find( strcmpi(mouse,{cellsArray.mouse}) & strcmpi(rec,{c
 thisCell = cellsOfRec([cellsOfRec.sessCell]==unitSessNumber);
 unitNumber = find(strcmpi(thisCell.uId,{cellsOfRec.uId})); %number of cell amongst the cells of the rec
 thisUnit = unit(unitNumber);
+%save the unit to a single file (it makes it easier to read)
+unitFileName = fullfile(fn.fold_exp_data, sprintf('%s_%03d_%s_%03d_spikes.mat', mouse, sess, rec,thisUnit.sessCell));
+save(unitFileName, 'thisUnit');
+
 %     %select a particular odor, for debugging purposes
 %     trial=trial(strcmpi('2-hydroxyacetophenone',{trial.odorName}));
 %     nt = numel(trial);
