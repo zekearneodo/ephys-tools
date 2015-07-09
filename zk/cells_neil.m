@@ -8,6 +8,10 @@
 % It saves:
 % -
 function [cn, cellsArray]= cells_neil(doit)
+
+%doit: 0 (or empty) [default] Don't run the rasters
+%      1 make the rasters for neil (no noStimSniffs, for instance)
+%      2 make the rasters for continuing analysis in python
 global cn
 
 cn.units_meta      = @units_meta;
@@ -23,7 +27,11 @@ cn.assemble_baseline = @assemble_baseline;
 
 cn.no_stim_sniffs_raster = @no_stim_sniffs_raster;
 
-if nargin>0 && doit==1
+if nargin==0
+    doit = 0;
+end
+
+if doit>0
     ffn=file_names();
     % load all cells in a cell structure
     mice = {'ZKawakeM72','KPawakeM72'};
@@ -44,15 +52,25 @@ if nargin>0 && doit==1
     %affinity:
     keepCells1 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]>3 & [cellsArray.sess]< 15 | [cellsArray.sess]==914)...
         | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>13 & [cellsArray.sess]<17);
+
     %concentration:
     keepCells2 =  (strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17 & [cellsArray.sess]< 28 ...
         | strcmpi('KPawakeM72',{cellsArray.mouse}) & [cellsArray.sess]>17);
     
     keepCells = keepCells1 + keepCells2;
     
-    %for neil debugging:
-    keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]==13
-    %
+    %for neil new emission (7/8/15)
+    keepCells3 = strcmpi('KPawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==23 | [cellsArray.sess]==24);
+    keepCells4 = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==28 | [cellsArray.sess]==29 | [cellsArray.sess]==15);
+    
+    keepCells = keepCells2 + keepCells3 + keepCells4;
+   
+    
+        if doit ==2
+            %for neil debugging:
+        keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==13);
+    end
+    
     
     cellsArray(~keepCells)=[];
     cellsArray(~([cellsArray.quality]==1))=[];
@@ -68,7 +86,7 @@ if nargin>0 && doit==1
     % - append it to the cell's structure
     
     %cellsArray(~(strcmpi('ZKawakeM72',{cellsArray.mouse}) & [cellsArray.sess]<20))=[];
-    make_rasters(cellsArray);
+    make_rasters(cellsArray, doit);
     %save all the meta,
     save(fullfile(ffn.fold_exp_data,'cells_meta.mat'), 'cellsArray');
 end
@@ -138,14 +156,20 @@ end
 save(fullfile(fn.fold_exp_data,'unitsmeta.mat'),'cellsArray');
 end
 
-function make_rasters(cellsArray)
+function make_rasters(cellsArray, doit)
 % goes through an array of cells meta and get the rasters for all the recs
 % it appears in
 % Input:
 %   cellsArray : array of unit metadata structures (the output of
 %                getUnits.py)
-%
+%   doit       : 1 (or empty) make the rasters for neil
+%                2 make them for cont. analysis
 %cellsArray(~strcmpi('ZKawakeM72_010_001',{cellsArray.uId}))=[];
+
+if nargin==0
+    doit = 1;
+end
+
 cells_uId = unique({cellsArray.uId});
 
 for ic = 1:numel(cells_uId)
@@ -195,10 +219,12 @@ for ic = 1:numel(cells_uId)
         end
         
         %make the no stim sniff structure and save it
-        noStimSniff = no_stim_sniffs_raster(x);
-        fn=file_names(x.mouse,x.sess,x.rec);
-        noStimFn = fullfile(fn.fold_exp_data,sprintf('%snoStimSniff.mat',fn.basename_an));
-        save(noStimFn, 'noStimSniff');
+        if doit == 2
+            noStimSniff = no_stim_sniffs_raster(x);
+            fn=file_names(x.mouse,x.sess,x.rec);
+            noStimFn = fullfile(fn.fold_exp_data,sprintf('%snoStimSniff.mat',fn.basename_an));
+            save(noStimFn, 'noStimSniff');
+        end
 
     end
     

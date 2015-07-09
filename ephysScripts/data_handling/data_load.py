@@ -120,13 +120,17 @@ def load_sniffs(mat_file_path, as_dict = True):
         sniffs = np.zeros((num_sniffs,), dtype=np.dtype([('flow', np.ndarray),
                                                            ('t_0', np.int),
                                                            ('t_zer', np.ndarray),
-                                                           ('t_zer_fit',np.ndarray)]))
+                                                           ('t_zer_fit',np.ndarray),
+                                                           ('inh_len', np.int),
+                                                           ('exh_len', np.int)]))
         i_sniff = 0
         for sniff_struct in  sniff_data[struct_name]:
             sniffs[i_sniff]['flow'] = np.array(sniff_struct.waveform, dtype=np.float)
             sniffs[i_sniff]['t_0'] = sniff_struct.t0
             sniffs[i_sniff]['t_zer'] = np.array(sniff_struct.t_zer, dtype=np.int)
             sniffs[i_sniff]['t_zer_fit'] = np.array(sniff_struct.t_zer_fit, dtype=np.float)
+            sniffs[i_sniff]['inh_len'] = sniff_struct.t_zer_fit[1]-sniff_struct.t_zer[0]
+            sniffs[i_sniff]['exh_len'] = sniff_struct.t_zer[2] - sniff_struct.t_zer_fit[1]
             i_sniff+=1
 
     else:
@@ -147,7 +151,7 @@ def load_spikes(mat_file_path, as_dict = True):
     print (mat_file_path)
     spike_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
     spikes_loaded = spike_data['thisUnit']
-    return np.array(spikes_loaded.times, dtype=np.float)
+    return np.array(spikes_loaded.times.round(), dtype=np.int)
 
 
 
@@ -221,11 +225,13 @@ def load_cell(mat_file_path, as_dict = False):
         for rec in  cell_data['raster']:
             #print rec
             record = get_rec(rec)
-            spikes_file_path = os.path.join(exp_data_path, record['meta']['id'] + '_spikes.mat')
-            record.update({'all_spikes' : load_spikes(spikes_file_path)})
             records.append(record)
     else:
         records.append(get_rec(cell_data['raster']))
+
+    for record in records:
+            spikes_file_path = os.path.join(exp_data_path, record['meta']['id'] + '_spikes.mat')
+            record.update({'all_spikes' : load_spikes(spikes_file_path)})
 
     if as_dict:
         records_dict = {}

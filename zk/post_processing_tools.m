@@ -84,8 +84,10 @@ addRequired(inPar,'mouse')
 addRequired(inPar,'sess')
 
 
-addParamValue(inPar,'trFunc','trial_build_M72',@ischar)
-addParamValue(inPar,'trFuncPath',fullfile(get_local_disk,'ephysDataManagement','zk'),@ischar)
+
+addParameter(inPar,'trFunc','trial_build_M72',@ischar)
+addParameter(inPar,'trFuncPath',fullfile(get_local_disk,'ephysDataManagement','zk'),@ischar)
+addParameter(inPar, 'recList', {}, @iscell)
 
 parse(inPar,mouse,sess,varargin{:})
 
@@ -102,7 +104,13 @@ fprintf('============================================================\n')
 q   = load(fn.sess_info);
 
 info = q.info;
-rec  = info.rec;
+
+if isempty(inPar.Results.recList)
+    rec  = info.rec;
+else
+    rec = cellfun(@(x) info.rec(strcmpi(x,{info.rec.name})), inPar.Results.recList);
+end
+
 %rec=rec(3);
 
 

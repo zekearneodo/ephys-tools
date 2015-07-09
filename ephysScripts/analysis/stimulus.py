@@ -87,8 +87,6 @@ class Stimulus:
         else:
             return cells_by_tag(self.responsive_records, tags)
 
-
-
 #a response object made from a record with responses and a stimulus object
 class Response:
     def __init__(self, resp_record, all_records, stimulus):
@@ -99,7 +97,7 @@ class Response:
         # raster
         # psth
         self.rec = {'rec_id':   resp_record['rec_id'],
-                    'meta': resp_record['meta']}
+                    'meta':     resp_record['meta']}
 
         #lookup the sniff, baseline, trial data
         self.base_sniff = BaselineSniff(resp_record['rec_id'], all_records)
@@ -131,12 +129,11 @@ class Response:
         #leave the object properties place holder for the plots:
         self.raster_plot = {'fig': None, 'ax_stack': None}
 
-    def plot(self, t_pre=100, t_post=300, bin_size=10, **kwargs):
+    def plot(self, t_pre=200, t_post=400, bin_size=10, **kwargs):
 
         #the raster of the response
         response = self.raster
         #get the baseline for the cell
-        baseline = self.baseline.data
 
         sr_spikes = response['spikes']
         sr_t0     = response['t_0']
@@ -168,15 +165,13 @@ class Response:
         hist_ax.set_xticklabels([])
 
         #the baseline
-        #get the baseline for the cell
-        bl_spikes = baseline['spikes']
+        #make the baseline for the cell
+
+        bl_spikes = self.baseline.make_raster(t_pre=t_pre, t_post=t_post)
         #plot it
-        bl_t0     = baseline['t_0']
-        bl_t1     = baseline['t_1']
-        bl_t2     = baseline['t_2']
         t0=t_pre
-        t1 = -bl_t1-t_pre
-        t2=t_post-bl_t1
+        t1 = 0
+        t2=t_post+t_pre
         base_line, hist_ax = plot_raster(bl_spikes, t0=t0, t1=t1, t2=t2, bin_size=bin_size, ax=hist_ax)
 
         hist_ax.set_ylim(0,max(psth[0])*1.2)
@@ -190,21 +185,54 @@ class Response:
         return self.raster_plot
 
 
-
-
-
-
 class BaselineSniff:
     def __init__(self, rec_id, records):
-        self.data = records['base_sniff'][rec_id]
-
-    
-
+        self.sniff_data = records['base_sniff'][rec_id]
 
 
 class Baseline:
-    def __init__(self, resp_id, records):
-        self.data = records['baselines'][resp_id]
+    def __init__(self, resp_id, records, warped=False):
+        rec_id = resp_id[0:-4]
+        self.sniff_data = records['base_sniff'][rec_id]
+        self.spikes =    records['responses'][resp_id]['all_spikes']
+
+    #makes a baseline raster
+    def make_raster(self, t_pre = 50, t_post=200, warped=False):
+        #order by sniff lengths
+        all_sniffs = np.sort(self.sniff_data, order=['inh_len', 't_0'])
+        all_spikes = self.spikes
+
+        n_sniffs = all_sniffs.shape[0]
+        t_2 = round(np.mean([sniff['flow'][sniff['t_zer'][0]:-1].shape[0] for sniff in all_sniffs]))
+        t_1 = 0
+        #order by sniff lengths
+        t_range = t_2-t_1
+        raster = np.zeros((n_sniffs,t_range))
+        flows  = np.zeros((t_range, n_sniffs))
+
+        i_f = 0
+        for flow in all_sniffs['flow']:
+            t_zer = all_sniffs[i_f]['t_zer'][0]
+            t_end = min(all_sniffs[i_f]['t_zer'][2]-all_sniffs[i_f]['t_zer'][0], t_2)
+
+            flows[0:t_end,i_f] = flow[t_zer:t_zer+t_end]
+            #get absolute timestamps of spikes in the corresp. sniff segment
+            t_inh = all_sniffs[i_f]['t_0']+t_zer
+            condition = (all_spikes > t_inh+t_1) & (all_spikes < t_inh + t_end)
+            spike_times = np.extract(condition, all_spikes) - t_inh - t_1
+            if spike_times.size > 0:
+                raster[i_f, spike_times] = 1
+            i_f += 1
+
+        #complete periodically to fit in t_pre, t_post
+        if t_pre > 0:
+            raster = np.append(raster[:, -t_pre:-1], raster, axis=1)
+        if t_post > t_2:
+            raster = np.append(raster, raster[:, t_pre: t_post-t_2], axis=1)
+        if t_post < t_2:
+            raster = raster[:, 0:t_pre+t_post]
+
+        return raster
 
 
 class Odor:
