@@ -163,19 +163,37 @@ def load_trials(mat_file_path, as_dict = True):
     #get the rec_id, mouse, rec, sess from the file name
     rec_id = os.path.split(mat_file_path)[-1].split('trial.mat')[0][:-1]
 
-    trials     = {'rec_id'     : rec_id,
-                  'mouse'      : rec_id.split('_')[0],
-                  'rec'        : rec_id.split('_')[2],
-                  'sess'       : int(float(rec_id.split('_')[1])),
-                  'start'      : np.array([x.start for x in trial_data['trial']], dtype=np.int),
-                  'odor'       : [str(x.odorName) for x in trial_data['trial']],
-                  'odor_c'     : np.array([x.odorConc for x in trial_data['trial']], dtype=np.float),
-                  'odor_t'     : np.array([x.odorTimes for x in trial_data['trial']], dtype=np.int),
-                  'sniff_flow' : np.array([x.flow for x in trial_data['trial']], dtype=np.float),
-                  'sniff_zero' : ([x.sniffZeroTimes for x in trial_data['trial']])
-                  }
+    trials = {}
+
+    for x in trial_data['trial']:
+
+        # trial     = {'rec_id'     : rec_id,
+        #               'mouse'      : rec_id.split('_')[0],
+        #               'rec'        : rec_id.split('_')[2],
+        #               'sess'       : int(float(rec_id.split('_')[1])),
+        #               'start'      : np.array([x.start for x in trial_data['trial']], dtype=np.int),
+        #               'odor'       : [str(x.odorName) for x in trial_data['trial']],
+        #               'odor_c'     : np.array([x.odorConc for x in trial_data['trial']], dtype=np.float),
+        #               'odor_t'     : np.array([x.odorTimes for x in trial_data['trial']], dtype=np.int),
+        #               'sniff_flow' : np.array([x.flow for x in trial_data['trial']], dtype=np.float),
+        #               'sniff_zero' : ([x.spZeros for x in trial_data['trial']])
+        #               }
+
+        trial     = {'rec_id'     : rec_id,
+              'mouse'      : rec_id.split('_')[0],
+              'rec'        : rec_id.split('_')[2],
+              'sess'       : int(float(rec_id.split('_')[1])),
+              'start'      : x.start,
+              'odor'       : str(x.odorName),
+              'odor_c'     : x.odorConc,
+              'odor_t'     : np.array(x.odorTimes, dtype=np.int),
+              'sniff_flow' : np.array(x.flow, dtype=np.float),
+              'sniff_zero' : np.array(x.spZeros, dtype=np.int)
+              }
+
+        trials.update({str(x.id):trial})
     if as_dict:
-        return {trials['rec_id'] : trials}
+        return {rec_id : trials}
     else:
         return trials
 
@@ -283,7 +301,7 @@ def load_cells(cells_path=''):
     #rec related dictionaries
     rec_trials = {} # the trial structures of every rec instance
     baselines  = {} # the baselines of every cell; keys of dict are record[i]['meta']['id']
-    base_sniff = {} # the sniff baselinesa
+    base_sniff = {} # the sniff baselines
     #dictionary of rec related data to load
     #'key' : [dict of the loaded data, 'tail of the filenames', loading function]
     rec_data = {'rec_trials' : [rec_trials, '_trial.mat', load_trials],
@@ -407,3 +425,19 @@ def cells_by_tag(responses, tags):
 #filter responses by the value of a single meta tag
 def conc_compare(conc1, conc2, tolerance=1.5):
     return 1./float(tolerance) < float(conc1)/float(conc2) and float(conc1)/float(conc2) < float(tolerance)
+
+
+#some tools for handling pieces of data
+#get warping parameters for a sniff loaded record
+def get_warping_parameters(sniff):
+    inh_len = np.max(sniff['inh_len'])
+    exh_len = np.max(sniff['exh_len'])
+    return inh_len, exh_len
+
+#resize a vector with interpolation (for rescaling)
+def resize_chunk(chunk, new_size):
+    old_size = chunk.shape[0]
+    x = np.linspace(0, 1, new_size)
+    xp = np.linspace(0, 1, old_size)
+    y = np.interp(x, xp, chunk)
+    return y

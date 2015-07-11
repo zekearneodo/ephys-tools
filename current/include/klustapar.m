@@ -27,7 +27,7 @@ classdef klustapar < handle
         nexcerpts = 50;
         excerpt_size_sec = 1.;
         threshold_strong_std_factor = 6.;
-        threshold_weak_std_factor = 3.5;
+        threshold_weak_std_factor = 4.5;
         weight_power = 2.;
         detect_spikes = 'negative';
         

@@ -20,7 +20,7 @@ else:
 import unitToolsv2
 from data_handling import ephys_names as en
 from data_handling.basic_plot import decim, plot_raster, make_psth, get_odor_trials
-from data_handling.data_load import load_cells, cells_for_odor, cells_for_laser, cells_by_tag
+from data_handling.data_load import load_cells, cells_for_odor, cells_for_laser, cells_by_tag, get_warping_parameters, resize_chunk
 
 class Stimulus:
     def __init__(self, odor=None, laser=None, records=None, tags=None):
@@ -197,32 +197,64 @@ class Baseline:
         self.spikes =    records['responses'][resp_id]['all_spikes']
 
     #makes a baseline raster
-    def make_raster(self, t_pre = 50, t_post=200, warped=False):
+    def make_raster(self, t_pre = 100, t_post=200, warped=False):
         #order by sniff lengths
         all_sniffs = np.sort(self.sniff_data, order=['inh_len', 't_0'])
         all_spikes = self.spikes
 
         n_sniffs = all_sniffs.shape[0]
-        t_2 = round(np.mean([sniff['flow'][sniff['t_zer'][0]:-1].shape[0] for sniff in all_sniffs]))
-        t_1 = 0
-        #order by sniff lengths
+
+        if warped:
+            inh_len, exh_len = get_warping_parameters(all_sniffs)
+            t_2 = inh_len + exh_len
+            t_1 = 0
+        else:
+            t_2 = round(np.mean([sniff['flow'][sniff['t_zer'][0]:-1].shape[0] for sniff in all_sniffs]))
+            t_1 = 0
+
         t_range = t_2-t_1
         raster = np.zeros((n_sniffs,t_range))
         flows  = np.zeros((t_range, n_sniffs))
 
-        i_f = 0
+        i_f =0
         for flow in all_sniffs['flow']:
             t_zer = all_sniffs[i_f]['t_zer'][0]
-            t_end = min(all_sniffs[i_f]['t_zer'][2]-all_sniffs[i_f]['t_zer'][0], t_2)
 
-            flows[0:t_end,i_f] = flow[t_zer:t_zer+t_end]
-            #get absolute timestamps of spikes in the corresp. sniff segment
-            t_inh = all_sniffs[i_f]['t_0']+t_zer
-            condition = (all_spikes > t_inh+t_1) & (all_spikes < t_inh + t_end)
-            spike_times = np.extract(condition, all_spikes) - t_inh - t_1
-            if spike_times.size > 0:
-                raster[i_f, spike_times] = 1
-            i_f += 1
+            if warped:
+                t_mid = all_sniffs[i_f]['t_zer_fit'][1]
+                t_end = all_sniffs[i_f]['t_zer'][2]
+                flows[0:inh_len,i_f] = resize_chunk(flow[t_zer:t_mid],inh_len)
+                flows[inh_len:inh_len+exh_len, i_f] = resize_chunk(flow[t_mid:t_end], exh_len)
+
+                #get absolute timestamps of spikes in the corresp. sniff segment
+                t_inh = all_sniffs[i_f]['t_0'] + t_zer
+                t_exh_on = all_sniffs[i_f]['t_0'] + t_mid
+                t_exh_off = all_sniffs[i_f]['t_0'] + t_end
+
+                condition_inh = (all_spikes > t_inh+t_1) & (all_spikes < t_exh_on)
+                spike_times = np.extract(condition_inh, all_spikes) - t_inh - t_1
+                if spike_times.size > 0:
+                    inh_spike_times = np.array(spike_times * inh_len/(t_mid-t_zer), dtype=int)
+                    raster[i_f, inh_spike_times] = 1
+
+                condition_exh = (all_spikes > t_exh_on) & (all_spikes < t_exh_off)
+                spike_times = np.extract(condition_exh, all_spikes) - t_exh_on - t_1
+                if spike_times.size > 0:
+                    exh_spike_times = np.array(np.floor(spike_times * exh_len/(t_exh_off-t_exh_on) + inh_len-1), dtype=int)
+                    raster[i_f, exh_spike_times] = 1
+
+            else:
+                t_end = min(all_sniffs[i_f]['t_zer'][2]-all_sniffs[i_f]['t_zer'][0], t_2)
+
+                flows[0:t_end, i_f] = flow[t_zer:t_zer + t_end]
+                #get absolute timestamps of spikes in the corresp. sniff segment
+                t_inh = all_sniffs[i_f]['t_0'] + t_zer
+                condition = (all_spikes > t_inh+t_1) & (all_spikes < t_inh+ t_end)
+                spike_times = np.extract(condition, all_spikes) - t_inh - t_1
+                if spike_times.size > 0:
+                    raster[i_f, spike_times] = 1
+            i_f+=1
+
 
         #complete periodically to fit in t_pre, t_post
         if t_pre > 0:

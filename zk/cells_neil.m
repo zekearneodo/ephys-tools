@@ -63,14 +63,13 @@ if doit>0
     keepCells3 = strcmpi('KPawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==23 | [cellsArray.sess]==24);
     keepCells4 = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==28 | [cellsArray.sess]==29 | [cellsArray.sess]==15);
     
-    keepCells = keepCells2 + keepCells3 + keepCells4;
+    keepCells = keepCells1 + keepCells2 + keepCells3 + keepCells4;
    
     
-        if doit ==2
-            %for neil debugging:
+    if doit ==2
+        %for neil debugging:
         keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==13);
     end
-    
     
     cellsArray(~keepCells)=[];
     cellsArray(~([cellsArray.quality]==1))=[];
@@ -166,6 +165,8 @@ function make_rasters(cellsArray, doit)
 %                2 make them for cont. analysis
 %cellsArray(~strcmpi('ZKawakeM72_010_001',{cellsArray.uId}))=[];
 
+cp = cell_passport_tools;
+
 if nargin==0
     doit = 1;
 end
@@ -191,6 +192,16 @@ for ic = 1:numel(cells_uId)
     one_cell.sess   = this_cell_instances(1).sess;
     one_cell.uid    = sprintf('%s_%03d_%03d',one_cell.mouse,one_cell.sess,this_cell_instances(1).sessCell);
     
+    %get info of the recording to add to the cell
+    sess_info = cp.load_info(this_cell_instances(1));
+    rec = this_cell_instances(1).rec;
+    rec_info = sess_info(strcmpi(rec, {sess_info.rec}));
+    if isfield(rec_info, 'site_side')
+        one_cell.is_ipsi = isempty(strcmpi(rec_info.site_side, 'contra'));
+    else
+        one_cell.is_ipsi = 0;
+    end
+    
     % add the rasters of each response
     %fields to store in the raster
     %field for storing -> name of field in read raster
@@ -201,7 +212,7 @@ for ic = 1:numel(cells_uId)
 
     for i = 1:numel(this_cell_instances)
         x = this_cell_instances(i);
-        raster = just_a_raster_set(x.mouse,x.sess,x.rec,x.sessCell);
+        raster = just_a_raster_set(x.mouse,x.sess,x.rec,x.sessCell, doit);
         if isempty(raster)
             continue
         end
@@ -354,15 +365,17 @@ end
 %%% using the trial structure from export_data
 %returns one raster for one particular rec in which the cell appears.
 %unitId is the unit identifier trhough the session.
-function [rasters] = just_a_raster_set(mouse,sess,rec,unitSessNumber,sType)
+function [rasters] = just_a_raster_set(mouse, sess, rec, unitSessNumber, doit, sType)
 %for all the sTypes, make the rasters for this cell
 %mouse
 %sess
 %rec
 %unitSessNumber
+%doit (0, 1, 2) (don't, for neil, for further analyisis in python)
+
 %sType          : cell array of stim types. default is {'odor' 'light'
 %'odor_light'}
-if nargin<5 || isempty(sType)
+if nargin<6 || isempty(sType)
     sTypes = {'odor' 'light' 'odor_light'};
 end
 sTypes = {'odor'};
@@ -374,7 +387,7 @@ sTypes = {'odor'};
 %unitNumber is which unit of that rec you want to get the raster.
 fprintf('Making rasters for unit %s_%03d_%03d_%s\n',mouse,sess,unitSessNumber,rec)
 fn = file_names(mouse,sess,rec);
-trial = neil_trial_structure(mouse,sess,rec);
+trial = neil_trial_structure(mouse,sess,rec, doit);
 
 if all(strcmpi(sTypes,{'odor'}))
     non_odor_trials = (cellfun(@(x) any(strcmpi(x, {'none', 'empty', 'not-an-event', 'dummy'})),{trial.odorName}));
@@ -392,9 +405,10 @@ thisCell = cellsOfRec([cellsOfRec.sessCell]==unitSessNumber);
 unitNumber = find(strcmpi(thisCell.uId,{cellsOfRec.uId})); %number of cell amongst the cells of the rec
 thisUnit = unit(unitNumber);
 %save the unit to a single file (it makes it easier to read)
-unitFileName = fullfile(fn.fold_exp_data, sprintf('%s_%03d_%s_%03d_spikes.mat', mouse, sess, rec,thisUnit.sessCell));
-save(unitFileName, 'thisUnit');
-
+if doit == 2
+    unitFileName = fullfile(fn.fold_exp_data, sprintf('%s_%03d_%s_%03d_spikes.mat', mouse, sess, rec,thisUnit.sessCell));
+    save(unitFileName, 'thisUnit');
+end
 %     %select a particular odor, for debugging purposes
 %     trial=trial(strcmpi('2-hydroxyacetophenone',{trial.odorName}));
 %     nt = numel(trial);
@@ -496,7 +510,7 @@ raster.y = y;
 
 end
 
-function trials = neil_trial_structure(mouse,sess,rec)
+function trials = neil_trial_structure(mouse,sess,rec, doit)
 %gets a trial structure for a mouse,sess,rec and writes it in a format
 %suitable for neil
 fn=file_names(mouse,sess,rec);
@@ -562,9 +576,12 @@ for it=1:numel(trial)
     try
         if ~any(isnan(ttr.sniffParabZeroTimes(2,:)))
             spZeros=[];
-            spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)));
-            spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)));
+            spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)))-t1;
+            spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)))-t1;
             tr.sniffZeroTimes = ttr.sniffZeroTimes - t1;
+            if doit ==2
+                tr.spZeros = spZeros;
+            end
             %         sz = spZeros - t1*ones(size(spZeros));
             %         firstSnif = find(sz>0,1,'first');
             %         lastSnif  = find(sz<t2,1,'last');

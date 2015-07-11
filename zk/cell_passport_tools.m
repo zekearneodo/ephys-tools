@@ -34,6 +34,7 @@ end
     
     cp.load_unit = @load_unit;
     cp.load_info = @load_info;
+    cp.read_info = @read_info;
     
     cp.isi_distribution = @isi_distribution;
     
@@ -284,7 +285,11 @@ set(frame.ax_info, 'XLim', [0 100], 'YLim', [0 100]);
 %example:
 label_props = [];
 label_prop.label  = 'Mouse Id: ';
-label_prop.text = num2str(s_info.mouseId, '%.1f');
+if isfield(s_info, 'mouseId')
+    label_prop.text = num2str(s_info.mouseId, '%.1f');
+else
+    label_prop.text = '';
+end
 label_prop.pos    = [0, 90];
 label_props = [label_props label_prop];
 
@@ -298,16 +303,20 @@ label_prop.text   = s_info.rec.electrode_type;
 label_prop.pos    = [0, 70];
 label_props = [label_props label_prop];
 
+try
 label_prop.label  = 'Depth: ';
 label_prop.text   = num2str(s_info.rec.site_depth);
 label_prop.pos    = [0, 60];
 label_props = [label_props label_prop];
-
+catch me
+end
+try
 label_prop.label  = 'Side: ';
 label_prop.text   = (s_info.rec.site_side);
 label_prop.pos    = [0, 50];
 label_props = [label_props label_prop];
-
+catch me
+end
 axes(frame.ax_info)
 axis off
 for i=1:numel(label_props)
@@ -344,11 +353,121 @@ end
 function [s_info] = load_info(unit_meta)
 
 fn = file_names(unit_meta.mouse, unit_meta.sess, unit_meta.rec);
-q=load(fn.ss_sess_info);
+updated_info = read_info(unit_meta.mouse, unit_meta.sess);
 
-s_info = q.info;
+if isempty(updated_info)
+    q=load(fn.ss_sess_info);
+    s_info = q.info;
+else
+    s_info = updated_info;
+end
+
 s_info.rec(~strcmpi(unit_meta.rec, {s_info.rec.name})) = [];
 
+end
+
+function info = read_info(mouse, sess)
+% the program read the following inofmration:
+% 1 - log file
+% 2 - raw data file directory
+% 3 - electrode channel config
+% 4 - meta data for individual recordings
+% It prints the structure rec for debugging.
+% It saves the data into ss_fold, sess_info.mat file
+
+    fn = file_names(mouse, sess);
+    if ~exist(fn.log, 'file')
+        warning('no log file')
+        info = [];
+        return
+    end
+        
+    fn = file_names(mouse, sess);
+    [info, rec] = read_log_file();
+    info.rec = rec;
+    
+    % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    function [info, rec] = read_log_file()
+        info   = struct();
+        rec    = struct();
+        irec   = 0;
+        if ~exist(fn.log, 'file')
+            error('no log file')
+        end
+        fid = fopen(fn.log, 'r');
+
+        neof   = true;
+        plevel = 1;
+        while neof
+            % read a line from log file
+            tl = fgetl(fid);
+            % if end of the file, finish the prorgam, 
+            % if the line starts with ':' - read the parameter
+            if tl== -1
+                neof =0;
+            elseif ~isempty(tl)&&(tl(1)==':')
+                % extract parameter name 'var' and its value 'value'
+                [var, value] = strtok(tl(2:end), ':');
+                var   = strtrim(var);
+                value = strtrim(strtok(value(2:end), '%'));
+                nvalue = str2double(value);
+
+                
+                switch var
+                    case 'rec'
+                        plevel = 2;
+                        irec   = irec + 1;
+                        if irec > 1
+                            %inherit the structure but empty all the fields
+                            rec(irec) = empty_structure(rec(irec-1));
+                        end
+                        rec(irec).name = value;
+                        % do not inherit run structure fields from prev. fields
+                        if isfield(rec(irec),'run') && ~isempty(rec(irec).run)
+                            rec(irec).run=[];
+                        end
+                            
+                    case 'run'
+                        plevel = 3;
+                        irun = nvalue;
+                        if isnan(irun)
+                            error('wrong run number')
+                        end
+                        if irun > 1
+                            %inherit the structure but empty all the fields
+                            rec(irec).run(irun) = empty_structure(rec(irec).run(irun-1));
+                        end
+                        rec(irec).run(irun).num = irun;
+                     otherwise
+                        % record parameter value, if it is a numerical convert to numerical
+                        if ~isnan(nvalue)
+                            value = nvalue;
+                        end
+                        
+                        switch plevel
+                            case 1
+                                info.(var) = value;
+                            case 2
+                                rec(irec).(var) = value;
+                            case 3
+                                rec(irec).run(irun).(var) = value;
+                        end
+                end
+            end
+        end
+        fclose(fid);
+%         save('recdbg.mat','rec')
+    end
+    
+ 
+    function stru = empty_structure(model)
+    %returns and empty model structure
+    allFields=fields(model);
+    for iF=1:numel(allFields)
+            stru.(allFields{iF})=[];
+    end
+    
+    end
 end
 
 function isi = isi_distribution(spikes1)
