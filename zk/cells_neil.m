@@ -212,7 +212,7 @@ for ic = 1:numel(cells_uId)
 
     for i = 1:numel(this_cell_instances)
         x = this_cell_instances(i);
-        raster = just_a_raster_set(x.mouse,x.sess,x.rec,x.sessCell, doit);
+        raster = just_a_raster_set(x.mouse, x.sess, x.rec, x.sessCell, doit);
         if isempty(raster)
             continue
         end

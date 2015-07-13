@@ -9,10 +9,10 @@ fishy_cells = {'KPawakeM72_019_a_001', 'KPawakeM72_019_b_001', 'KPawakeM72_024_b
     'KPawakeM72_817_e_001', 'KPawakeM72_817_f_001', 'ZKawakeM72_022_d_001'}
 
 %fishy_cells = {'ZKawakeM72_004_h_002'}
-fishy_select = cellfun(@(x) find(strcmpi(x, {cellsArray.Id})), fishy_cells)
+%fishy_select = cellfun(@(x) find(strcmpi(x, {cellsArray.Id})), fishy_cells)
 %select cellsarray
-%cellsForPass = cellsArray(([cellsArray.light]==1)
-cellsForPass = cellsArray(fishy_select)
+cellsForPass = cellsArray(([cellsArray.light]==1))
+%cellsForPass = cellsArray(fishy_select)
 for i=1:numel(cellsForPass)
     a_unit=cellsForPass(i);
     try
