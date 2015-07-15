@@ -18,6 +18,7 @@ for i=1:numel(cellsForPass)
     try
     pa = cp.make_passport(a_unit);
     catch me
+        warning('Could not finish passport for cell %s',a_unit.Id)
         continue
     end
 end

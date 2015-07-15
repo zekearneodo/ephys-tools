@@ -23,7 +23,7 @@ from data_handling.basic_plot import decim, plot_raster, make_psth, get_odor_tri
 from data_handling.data_load import load_cells, cells_for_odor, cells_for_laser, cells_by_tag, get_warping_parameters, resize_chunk
 
 class Stimulus:
-    def __init__(self, odor=None, laser=None, records=None, tags=None):
+    def __init__(self, odor=None, laser=None, records=None, tags=None, root=experiment_folder):
         """
         :param odor: odor object
         :param laser: laser object
@@ -39,7 +39,7 @@ class Stimulus:
 
         if records is None:
             #load all the records of default experiment
-            fn = en.file_names(root=experiment_folder)
+            fn = en.file_names(root=root)
             cells_path = fn.fold_exp_data
             records = load_cells(cells_path)
 
@@ -113,6 +113,8 @@ class Response:
 
         #all the trials
         self.all_trials = all_records['trials'][resp_record['rec_id']]
+        #all the spikes
+        self.all_spikes = all_records['responses'][resp_record['meta']['id']]['all_spikes']
         #the actual responses (rasters)
         all_responses = resp_record[resp_key]
 
@@ -129,16 +131,23 @@ class Response:
         #leave the object properties place holder for the plots:
         self.raster_plot = {'fig': None, 'ax_stack': None}
 
-    def plot(self, t_pre=200, t_post=400, bin_size=10, **kwargs):
+    def plot(self, t_pre=200, t_post=400, bin_size=10, warped=False):
 
         #the raster of the response
-        response = self.raster
+        raster = self.make_raster(t_pre=-200, t_post=t_post, warped=warped)
         #get the baseline for the cell
 
-        sr_spikes = response['spikes']
-        sr_t0     = response['t_0']
-        sr_t1     = response['t_1']
-        sr_t2     = response['t_2']
+
+        #sr_spikes = response['spikes']
+        #sr_t0     = response['t_0']
+        #sr_t1     = response['t_1']
+        #sr_t2     = response['t_2']
+
+        sr_spikes = raster
+        if warped:
+            t_post = sr_spikes.shape[1] - t_pre
+
+        sr_t1 = -200
 
         #plot the psth
         sr_plot = plt.figure()
@@ -167,7 +176,7 @@ class Response:
         #the baseline
         #make the baseline for the cell
 
-        bl_spikes = self.baseline.make_raster(t_pre=t_pre, t_post=t_post)
+        bl_spikes = self.baseline.make_raster(t_pre=t_pre, t_post=t_post, warped=warped)
         #plot it
         t0=t_pre
         t1 = 0
@@ -183,6 +192,79 @@ class Response:
         self.raster_plot['ax_stack'] = sr_ax
 
         return self.raster_plot
+
+    #make a response raster
+    def make_raster(self, t_pre=-200, t_post=600, warped=False):
+
+        all_trial_id = self.raster['trialId']
+        all_spikes = self.all_spikes
+        all_sniffs = np.sort(self.baseline.sniff_data, order=['inh_len', 't_0'])
+
+        num_trials = len(all_trial_id)
+
+        if warped:
+            inh_len, exh_len = get_warping_parameters(all_sniffs)
+            t_post = inh_len + exh_len
+
+        t_range = t_post - t_pre
+        raster = np.zeros((num_trials,t_range))
+        flows = np.zeros((t_range, num_trials))
+
+        #quick raster
+        for ir in range(num_trials):
+            # first inhale after odor onset (number relative to trial start)
+            tr_id = self.raster['trialId'][ir]
+            trial = self.all_trials[tr_id]
+            trial_start = trial['start']
+            stim_on = trial['odor_t'][0]
+            condition_inh = (trial['sniff_zero'][0] > stim_on)
+            inh_times = np.extract(condition_inh, trial['sniff_zero'][0])+200
+            exh_times = np.extract(condition_inh, trial['sniff_zero'][1])+200
+
+            if warped:
+                t_inh = inh_times[0] + trial_start
+                t_exh = exh_times[0] + trial_start
+                t_end = inh_times[1] + trial_start
+                inh = t_exh - t_inh
+                exh = t_end - t_exh
+
+                #flows[0:inh_len,ir] = resize_chunk(-trial['sniff_flow'][inh_times[0]+t_pre:exh_times[0]+t_pre], inh_len)
+                #flows[inh_len: inh_len+exh_len,ir] = resize_chunk(-trial['sniff_flow'][exh_times[0]+t_pre:inh_times[1]+t_pre], exh_len)
+
+                #pre
+                condition_pre = (all_spikes > trial_start + t_pre) & (all_spikes < trial_start)
+                spike_times = np.extract(condition_pre, all_spikes) - trial_start - t_pre
+                if spike_times.size > 0:
+                    pre_spike_times = np.array(spike_times, dtype = int)
+                    raster[ir, pre_spike_times] = 1
+
+
+                #inhale
+                condition_inh = (all_spikes>t_inh) & (all_spikes<t_exh)
+                spike_times = np.extract(condition_inh, all_spikes) - t_inh
+                if spike_times.size > 0:
+                    inh_spike_times = np.array(spike_times * inh_len/inh, dtype = int)-t_pre
+                    raster[ir, inh_spike_times] = 1
+
+                #exhale
+                condition_exh = (all_spikes>t_exh) & (all_spikes<t_end)
+                spike_times = np.extract(condition_exh, all_spikes) - t_exh
+                if spike_times.size > 0:
+                    exh_spike_times = np.array(np.floor(spike_times * exh_len/exh + inh_len-1), dtype=int)-t_pre-inh
+                    raster[ir, exh_spike_times] = 1
+            else:
+                #flows[:,ir] = -trial['sniff_flow'][inh_times[0]+t_pre:inh_times[0]+t_post]
+                #flows[:,ir] = trial['sniff_flow'][0:t_range]
+                #get absolute timestamps of spikes in the corresp. sniff segment
+                t_inh = inh_times[0] + trial_start
+                condition = (all_spikes > t_inh + t_pre) & (all_spikes < t_inh + t_post)
+                spike_times = np.extract(condition, all_spikes) - t_inh - t_pre
+                if spike_times.size > 0:
+                    raster[ir, spike_times] = 1
+
+        return raster
+
+
 
 
 class BaselineSniff:

@@ -99,11 +99,11 @@ def make_psth(x, t1=0, t2=-1, t0=0, bin_size=1):
     # psth: an array with the frequency (counts/(bin_size*n_trials))
 
     # Chop the segment
-    if t2>0:
-        assert(t2>t1)
-        x = x[:,t1:t2]
+    if t2 > 0:
+        assert(t2 > t1)
+        x = x[:, t1:t2]
     else:
-        x = x[:,t1:]
+        x = x[:, t1:]
 
     # get dimensions and time
     events   = x.shape[0]
@@ -112,9 +112,14 @@ def make_psth(x, t1=0, t2=-1, t0=0, bin_size=1):
 
     #pdb.set_trace()
     #if bin_size was entered, we want a psth
-    psth  = decim(np.mean(x[:t_stamps,:],axis=0), bin_size)/(0.001*bin_size)
-    t_dec = decim(t, bin_size)
+    #x = x[:t_stamps, :]
 
+    t_dec = decim(t, bin_size)
+    n_bins = t_dec.shape[0]
+    pad_size = n_bins*bin_size - x.shape[1]
+    pad = np.zeros(pad_size, dtype=np.int)
+
+    psth = np.sum(np.append(pad, np.sum(x, axis=0)).reshape(n_bins,bin_size), axis=1)/(events*bin_size*0.001)
     return psth, t_dec
 
 
