@@ -77,7 +77,7 @@ if doit>0
     % now you got an array of cells for the suffixes
     %with the cells selected, make all the units and place them ein the
     %export_data folder
-    units_meta(cellsArray);
+    %units_meta(cellsArray);
     
     % now go through all those cells and:
     % - find them in all the recs they appear in
@@ -165,7 +165,7 @@ function make_rasters(cellsArray, doit)
 %                2 make them for cont. analysis
 %cellsArray(~strcmpi('ZKawakeM72_010_001',{cellsArray.uId}))=[];
 
-cp = cell_passport_tools;
+cp = cell_passport_tools();
 
 if nargin==0
     doit = 1;
@@ -195,11 +195,12 @@ for ic = 1:numel(cells_uId)
     %get info of the recording to add to the cell
     sess_info = cp.load_info(this_cell_instances(1));
     rec = this_cell_instances(1).rec;
-    rec_info = sess_info(strcmpi(rec, {sess_info.rec}));
+    rec_info = sess_info.rec(strcmpi(rec, {sess_info.rec.name}));
+    %one_cell.sess_i = sess_info.sess;
     if isfield(rec_info, 'site_side')
-        one_cell.is_ipsi = isempty(strcmpi(rec_info.site_side, 'contra'));
+        one_cell.is_ipsi = isempty(strfind(rec_info.site_side, 'contra'));
     else
-        one_cell.is_ipsi = 0;
+        one_cell.is_ipsi = -1;
     end
     
     % add the rasters of each response

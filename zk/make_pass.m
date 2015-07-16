@@ -22,3 +22,19 @@ for i=1:numel(cellsForPass)
         continue
     end
 end
+
+
+%Load all the cell files
+mice = {'ZKawakeM72','KPawakeM72'};
+ffn = file_names();
+%mice = {'KPawakeM72'};
+%load all the cells into an array of cells
+disp(wrap_message('Getting cells and trial structures for Neil','*'));
+cellFilesArray = [];
+for is=1:numel(mice)
+    cs=mice{is};
+    cellFiles=dir(fullfile(ffn.fold_exp_data, [cs '*cell.mat']));
+    allCells = arrayfun(@(x) load(fullfile(ffn.fold_exp_data,x.name)),cellFiles,'UniformOutput',false);
+    cellFilesArray = [cellFilesArray [allCells{:}]]; %#ok<AGROW>
+end
+
