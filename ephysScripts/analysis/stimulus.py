@@ -194,7 +194,7 @@ class Response:
         return self.raster_plot
 
     #make a response raster
-    def make_raster(self, t_pre=-200, t_post=600, warped=False):
+    def make_raster(self, t_pre=200, t_post=600, warped=False):
 
         all_trial_id = self.raster['trialId']
         all_spikes = self.all_spikes
@@ -206,9 +206,10 @@ class Response:
             inh_len, exh_len = get_warping_parameters(all_sniffs)
             t_post = inh_len + exh_len
 
+        t_pre = -t_pre
         t_range = t_post - t_pre
         raster = np.zeros((num_trials,t_range))
-        flows = np.zeros((t_range, num_trials))
+        #flows = np.zeros((t_range, num_trials))
 
         #quick raster
         for ir in range(num_trials):
