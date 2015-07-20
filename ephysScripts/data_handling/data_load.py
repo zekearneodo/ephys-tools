@@ -429,9 +429,13 @@ def conc_compare(conc1, conc2, tolerance=1.5):
 
 #some tools for handling pieces of data
 #get warping parameters for a sniff loaded record
-def get_warping_parameters(sniff):
-    inh_len = np.max(sniff['inh_len'])
-    exh_len = np.max(sniff['exh_len'])
+def get_warping_parameters(sniff, means = False):
+    if means:
+        inh_len = int(round(np.mean(sniff['inh_len'])))
+        exh_len = int(round(np.mean(sniff['exh_len'])))
+    else:
+        inh_len = np.max(sniff['inh_len'])
+        exh_len = np.max(sniff['exh_len'])
     return inh_len, exh_len
 
 #resize a vector with interpolation (for rescaling)

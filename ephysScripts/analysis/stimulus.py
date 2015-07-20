@@ -21,6 +21,8 @@ import unitToolsv2
 from data_handling import ephys_names as en
 from data_handling.basic_plot import decim, plot_raster, make_psth, get_odor_trials
 from data_handling.data_load import load_cells, cells_for_odor, cells_for_laser, cells_by_tag, get_warping_parameters, resize_chunk
+import response_functions as rf
+
 
 class Stimulus:
     def __init__(self, odor=None, laser=None, records=None, tags=None, root=experiment_folder):
@@ -103,6 +105,7 @@ class Response:
         self.base_sniff = BaselineSniff(resp_record['rec_id'], all_records)
         self.baseline = Baseline(resp_record['meta']['id'], all_records)
 
+
         #select the responses to the stimulus in this rec
         #filter the responses
         #for now, just odor stimuli
@@ -130,6 +133,8 @@ class Response:
 
         #leave the object properties place holder for the plots:
         self.raster_plot = {'fig': None, 'ax_stack': None}
+
+        self.response_onset = None
 
     def plot(self, t_pre=200, t_post=400, bin_size=10, warped=False):
 
@@ -173,9 +178,14 @@ class Response:
         hist_ax.set_xlim(-t0, t2-t1-t0)
         hist_ax.set_xticklabels([])
 
+        #the onset of the response
+        if self.response_onset is not None:
+            onset = self.response_onset['onset']
+            line = 'g:' if self.response_onset['supra'] else 'm:'
+            rs_on = hist_ax.plot((onset, onset),
+                                 (0, psth[0][(onset+t0)//bin_size]), line,  linewidth=2.0)
         #the baseline
         #make the baseline for the cell
-
         bl_spikes = self.baseline.make_raster(t_pre=t_pre, t_post=t_post, warped=warped)
         #plot it
         t0=t_pre
@@ -186,7 +196,6 @@ class Response:
         hist_ax.set_ylim(0,max(psth[0])*1.2)
         title = self.rec['meta']['id']
         hist_ax.set_title(title)
-
 
         self.raster_plot['figure'] = sr_plot
         self.raster_plot['ax_stack'] = sr_ax
@@ -265,7 +274,10 @@ class Response:
 
         return raster
 
-
+    #get the bin onset using the KS test and a large bin_size
+    def get_response_onset(self, bin_size = 10, warped=False):
+        onset, is_supra, ps, baseline_boot, ks_p, ks_stat = rf.find_detailed_onset(self, bin_size=bin_size, p_ks=0.01, p_bs=0.005, warped=warped)
+        self.response_onset = dict(onset=onset, supra=is_supra, p=ks_p)
 
 
 class BaselineSniff:
@@ -292,7 +304,9 @@ class Baseline:
             t_2 = inh_len + exh_len
             t_1 = 0
         else:
-            t_2 = round(np.mean([sniff['flow'][sniff['t_zer'][0]:].shape[0] for sniff in all_sniffs]))
+            #t_2 = round(np.mean([sniff['flow'][sniff['t_zer'][0]:].shape[0] for sniff in all_sniffs]))
+            inh_len, exh_len = get_warping_parameters(all_sniffs)
+            t_2 = inh_len + exh_len
             t_1 = 0
 
         t_range = t_2-t_1
