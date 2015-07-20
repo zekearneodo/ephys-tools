@@ -134,7 +134,7 @@ class Response:
     def plot(self, t_pre=200, t_post=400, bin_size=10, warped=False):
 
         #the raster of the response
-        raster = self.make_raster(t_pre=-200, t_post=t_post, warped=warped)
+        raster = self.make_raster(t_pre=200, t_post=t_post, warped=warped)
         #get the baseline for the cell
 
 
@@ -292,7 +292,7 @@ class Baseline:
             t_2 = inh_len + exh_len
             t_1 = 0
         else:
-            t_2 = round(np.mean([sniff['flow'][sniff['t_zer'][0]:-1].shape[0] for sniff in all_sniffs]))
+            t_2 = round(np.mean([sniff['flow'][sniff['t_zer'][0]:].shape[0] for sniff in all_sniffs]))
             t_1 = 0
 
         t_range = t_2-t_1
@@ -323,7 +323,7 @@ class Baseline:
                 condition_exh = (all_spikes > t_exh_on) & (all_spikes < t_exh_off)
                 spike_times = np.extract(condition_exh, all_spikes) - t_exh_on - t_1
                 if spike_times.size > 0:
-                    exh_spike_times = np.array(np.floor(spike_times * exh_len/(t_exh_off-t_exh_on) + inh_len-1), dtype=int)
+                    exh_spike_times = np.array(np.floor(spike_times * exh_len/(t_exh_off-t_exh_on) + inh_len), dtype=int)
                     raster[i_f, exh_spike_times] = 1
 
             else:
@@ -341,7 +341,7 @@ class Baseline:
 
         #complete periodically to fit in t_pre, t_post
         if t_pre > 0:
-            raster = np.append(raster[:, -t_pre:-1], raster, axis=1)
+            raster = np.append(raster[:, -t_pre:], raster, axis=1)
         if t_post > t_2:
             raster = np.append(raster, raster[:, t_pre: t_post-t_2], axis=1)
         if t_post < t_2:

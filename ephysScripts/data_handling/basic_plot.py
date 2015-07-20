@@ -1,3 +1,4 @@
+from __future__ import division
 __author__ = 'zeke'
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,17 +7,33 @@ import math
 import scipy as sp
 from data_handling.data_load import conc_compare
 
-#fucntions for handling and plotting
+
+# fucntions for handling and plotting
 def decim(x, q):
-    #decimate a 1 x n array
-    #x: 1xn matrix (float)
-    #q: int (decimate ratio), 0<q<=x.size
+    # decimate a 1 x n array
+    # x: 1xn matrix (float)
+    # q: int (decimate ratio), 0<q<=x.size
     assert(x.size>=q and q>0)
     pad_size = math.ceil(float(x.size)/q)*q - x.size
     pad = np.empty(pad_size)
     pad[:]=np.nan
     x_padded = np.append(x,pad)
     return sp.nanmean(x_padded.reshape(-1,q),axis=1)
+
+# bin the array in columns
+def col_binned(a, bs):
+    # a: rectangular array shape (n, m)
+    # bs: size for bin columns
+    # output : array (n, o=m//bs)
+    # if m<o*bs, those columns are padded with zeros
+
+    n = a.shape[0]
+    m = a.shape[1]
+    o = np.ceil(m/bs)
+
+    pad = np.empty([n, o*bs - m])*np.nan
+    padded = np.append(a, pad, axis=1)
+    return np.nansum(padded.reshape(n,o,bs), axis=2)
 
 def plot_raster(x, t1=0, t2=-1, t0=0, ax=None, bin_size=0):
     #plot a raster
