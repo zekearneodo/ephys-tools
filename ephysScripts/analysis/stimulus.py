@@ -179,7 +179,7 @@ class Response:
         hist_ax.set_xticklabels([])
 
         #the onset of the response
-        if self.response_onset is not None:
+        if self.response_onset['onset'] not in [None, np.nan]:
             onset = self.response_onset['onset']
             line = 'g:' if self.response_onset['supra'] else 'm:'
             rs_on = hist_ax.plot((onset, onset),
@@ -276,8 +276,8 @@ class Response:
 
     #get the bin onset using the KS test and a large bin_size
     def get_response_onset(self, bin_size = 10, warped=False):
-        onset, is_supra, ps, baseline_boot, ks_p, ks_stat = rf.find_detailed_onset(self, bin_size=bin_size, p_ks=0.01, p_bs=0.005, warped=warped)
-        self.response_onset = dict(onset=onset, supra=is_supra, p=ks_p)
+        onset, is_supra, ps, baseline_boot, ks_p, ks_stat, bl_value, onset_value = rf.find_detailed_onset(self, bin_size=bin_size, p_ks=0.01, p_bs=0.005, warped=warped)
+        self.response_onset = dict(onset=onset, supra=is_supra, p=ks_p, baseline=bl_value, response=onset_value)
 
 
 class BaselineSniff:

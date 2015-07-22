@@ -133,14 +133,14 @@ def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.005, p_bs=0.0
     onset, is_supra = find_onset(response, bin_size=bin_size, p=p_ks, warped=warped, t_post=t_post)
 
     if onset is np.nan:
-        return onset, np.nan, np.nan, np.nan, np.nan
+        return onset, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
 
     #now get a more detailed one using the bootstrap over a two-bin window
     t1 = int(round(onset-1)*bin_size)
     t1 = max(0, t1)
     t2 = t1 + 2*bin_size
-    rst = response.make_raster(t_pre=0, t_post=t2, warped=warped)[:, t1:t2]
-    bl = response.baseline.make_raster(t_pre=0, t_post=t2, warped=warped)[:, t1:t2]
+    rst = response.make_raster(t_pre=0, t_post=t2, warped=warped)[:, t1:t2 + bin_size]
+    bl = response.baseline.make_raster(t_pre=0, t_post=t2, warped=warped)[:, t1:t2 + bin_size]
 
     rst_sa = col_binned(rst, precision).transpose()
     bl_sa = col_binned(bl, precision).transpose()
@@ -150,7 +150,35 @@ def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.005, p_bs=0.0
     det_onset = next(itertools.ifilter(lambda i: ps[i] < p_bs, range(len(ps))), None)
     if det_onset is not None:
         final_onset = det_onset + t1
+        t_onset = det_onset
     else:
         final_onset = onset * bin_size
+        t_onset = bin_size
 
-    return final_onset, is_supra, ps, baseline_boot, ks_p, ks_stat
+    #compute the value of the baseline and the response
+    t_on = max(0, t_onset-bin_size//2)
+    bl_value = bl_sa.mean(axis=1)[t_on: t_on + bin_size].sum()/(bin_size*0.001)
+    onset_value = rst_sa.mean(axis=1)[t_on: t_on + bin_size].sum()/(bin_size*0.001)
+
+    #if warped, return the value in sniff value
+    if warped:
+        warped_onset = warp_time(response, final_onset)
+        final_onset = warped_onset
+
+    #bl_value = bl_sa
+    #onset_value = rst_sa
+    return final_onset, is_supra, ps, baseline_boot, ks_p, ks_stat, bl_value, onset_value
+
+
+def warp_time(response, t):
+
+        all_sniffs = np.sort(response.baseline.sniff_data, order=['inh_len', 't_0'])
+        inh_len, exh_len = get_warping_parameters(all_sniffs, means=False)
+
+        if t <= inh_len:
+            t_warped = t/inh_len
+        else:
+            t_warped = 0.5 + (t-inh_len)/exh_len
+
+        return t_warped
+
