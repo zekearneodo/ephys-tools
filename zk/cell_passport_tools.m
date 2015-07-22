@@ -690,7 +690,7 @@ function geometry = make_frame_geometry(one_stim)
  else
     %conc_index = find(odors(odor_index).concs> one_stim.odorConc*0.5 & odors(odor_index).concs<one_stim.odorConc*1.5);
     [conc_mismatch, conc_index]=min(abs(odors(odor_index).concs/one_stim.odorConc-1));
-    if 1-conc_mismatch < 0.4
+    if 1-conc_mismatch < 0.5
         warning('concentriaton %0.4g of odor %s poorly identified as a stimulus for the grid', one_stim.odorConc, one_stim.odorName);
         conc_index = 0;
     end

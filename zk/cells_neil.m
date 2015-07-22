@@ -68,7 +68,7 @@ if doit>0
     
     if doit ==2
         %for neil debugging:
-        keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==13);
+        keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==4);
     end
     
     cellsArray(~keepCells)=[];
@@ -77,7 +77,7 @@ if doit>0
     % now you got an array of cells for the suffixes
     %with the cells selected, make all the units and place them ein the
     %export_data folder
-    %units_meta(cellsArray);
+    units_meta(cellsArray);
     
     % now go through all those cells and:
     % - find them in all the recs they appear in
@@ -577,9 +577,9 @@ for it=1:numel(trial)
     try
         if ~any(isnan(ttr.sniffParabZeroTimes(2,:)))
             spZeros=[];
-            spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)))-t1;
-            spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)))-t1;
-            tr.sniffZeroTimes = ttr.sniffZeroTimes - t1;
+            spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)));
+            spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)));
+            tr.sniffZeroTimes = ttr.sniffZeroTimes;
             if doit ==2
                 tr.spZeros = spZeros;
             end

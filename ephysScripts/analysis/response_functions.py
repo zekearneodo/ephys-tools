@@ -4,8 +4,10 @@ __author__ = 'zeke'
 import numpy as np
 from scipy.stats import ks_2samp
 import itertools
+import matplotlib.pyplot as plt
 from data_handling.data_load import get_warping_parameters
 from data_handling.basic_plot import decim, col_binned, plot_raster, make_psth
+
 
 # compare one raster against another one with many more trials
 def raster_compare(stimulus_sa, baseline_sa, bootstrap=False):
@@ -61,7 +63,7 @@ def raster_compare(stimulus_sa, baseline_sa, bootstrap=False):
 
 
 # find the onset of a divergence of the two series of bins with a p-value lower than p
-def find_onset(response, bin_size=10, t_post=0, p=0.01, warped=False):
+def find_onset(response, bin_size=10, t_post=0, p=0.05, warped=False, debug=False):
     """
     :param response: response object (with baseline)
     :param bin_size: size of the bin for comparison (int)
@@ -85,24 +87,25 @@ def find_onset(response, bin_size=10, t_post=0, p=0.01, warped=False):
     # get the statistics
     _, _, ks, kst = raster_compare(rst_sa, bl_sa, bootstrap=False)
 
-    # # debugging
-    # t_pre = 0
-    # rst = response.make_raster(warped=warped, t_pre=0, t_post=t_post)
-    # bl=response.baseline.make_raster(t_pre=0, t_post=t_post, warped=warped)
-    # events = bl.shape[0]
-    # t_stamps = bl.shape[1]
-    # t=np.arange(t_stamps)
-    # t_dec = decim(t, bin_size)
-    # #plot_raster(bl, t0=t_pre, t2=t_post, bin_size=bin_size)
-    # #plot_raster(rst, t0=t_pre, t2=t_post, bin_size=bin_size)
-    # plt.plot(t_dec, rst_sa.mean(axis=1))
-    # plt.plot(t_dec, bl_sa.mean(axis=1))
-    # #plt.plot(t_dec, psths[t_post//bin_size, :])
-    # response_mean = rst_sa.mean(axis=1)
-    # #plt.plot(t_dec, psths.mean(axis=0))
-    # plt.figure()
-    # plt.plot(t_dec, ks)
-    # #plt.plot(t_dec, ps)
+    # debugging
+    if debug:
+        t_pre = 0
+        rst = response.make_raster(warped=warped, t_pre=0, t_post=t_post)
+        bl=response.baseline.make_raster(t_pre=0, t_post=t_post, warped=warped)
+        events = bl.shape[0]
+        t_stamps = bl.shape[1]
+        t=np.arange(t_stamps)
+        t_dec = decim(t, bin_size)
+        #plot_raster(bl, t0=t_pre, t2=t_post, bin_size=bin_size)
+        #plot_raster(rst, t0=t_pre, t2=t_post, bin_size=bin_size)
+        plt.plot(t_dec, rst_sa.mean(axis=1))
+        plt.plot(t_dec, bl_sa.mean(axis=1))
+        #plt.plot(t_dec, psths[t_post//bin_size, :])
+        response_mean = rst_sa.mean(axis=1)
+        #plt.plot(t_dec, psths.mean(axis=0))
+        plt.figure()
+        plt.plot(t_dec, ks)
+        #plt.plot(t_dec, ps)
 
     #find the first significant difference
     onset = next(itertools.ifilter(lambda i: ks[i] < p, range(len(ks))), None)
@@ -112,13 +115,13 @@ def find_onset(response, bin_size=10, t_post=0, p=0.01, warped=False):
         onset = np.nan
         is_supra = None
 
-    return onset, is_supra
+    return onset, is_supra, ks
 
 
 # find the onset of a divergence of the two series of bins with a p-value lower than p using a two-step approach:
 # fist find roughly the onset using find_onset (binned data, ks test)
 # then do a fine search within that segment using the bootstrap procedure
-def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.005, p_bs=0.001, warped=False, t_post=0):
+def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.05, p_bs=0.001, warped=False, t_post=0):
     #get the bin onset using the KS test and a large bin_size
     """
     :param response: response object (with baseline)
@@ -130,7 +133,7 @@ def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.005, p_bs=0.0
     :param t_post: time after onset of stimulus (or sniff) for the search
     :return:
     """
-    onset, is_supra = find_onset(response, bin_size=bin_size, p=p_ks, warped=warped, t_post=t_post)
+    onset, is_supra, ks = find_onset(response, bin_size=bin_size, p=p_ks, warped=warped, t_post=t_post)
 
     if onset is np.nan:
         return onset, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
@@ -139,8 +142,8 @@ def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.005, p_bs=0.0
     t1 = int(round(onset-1)*bin_size)
     t1 = max(0, t1)
     t2 = t1 + 2*bin_size
-    rst = response.make_raster(t_pre=0, t_post=t2, warped=warped)[:, t1:t2 + bin_size]
-    bl = response.baseline.make_raster(t_pre=0, t_post=t2, warped=warped)[:, t1:t2 + bin_size]
+    rst = response.make_raster(t_pre=0, t_post=t2 + bin_size, warped=warped)[:, t1:t2 + bin_size]
+    bl = response.baseline.make_raster(t_pre=0, t_post=t2 + bin_size, warped=warped)[:, t1:t2 + bin_size]
 
     rst_sa = col_binned(rst, precision).transpose()
     bl_sa = col_binned(bl, precision).transpose()
@@ -163,7 +166,7 @@ def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.005, p_bs=0.0
     #if warped, return the value in sniff value
     if warped:
         warped_onset = warp_time(response, final_onset)
-        final_onset = warped_onset
+        #final_onset = warped_onset
 
     #bl_value = bl_sa
     #onset_value = rst_sa
@@ -182,3 +185,15 @@ def warp_time(response, t):
 
         return t_warped
 
+def unwarp_time(response, t, inh_len=None, exh_len=None):
+
+        if inh_len is None or exh_len is None:
+            all_sniffs = np.sort(response.baseline.sniff_data, order=['inh_len', 't_0'])
+            inh_len, exh_len = get_warping_parameters(all_sniffs, means=False)
+
+        if t <= 0.5:
+            t_unwarped = t * inh_len
+        else:
+            t_unwarped = inh_len + (t - 0.5)*exh_len
+
+        return t_unwarped

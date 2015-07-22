@@ -29,16 +29,16 @@ def load_sniff_base(mat_file_path, as_dict=True):
     num_tpoints = trialsBase[0].sniffFlow.shape[0]
     #print num_trials
 
-    sniff_flow = np.empty([num_tpoints, num_trials],dtype=int)
-    sniff_phase = np.empty([num_tpoints, num_trials],dtype=int)
-    sniff_start = np.empty([num_trials,1],dtype=int)
+    sniff_flow = np.empty([num_tpoints, num_trials], dtype=int)
+    sniff_phase = np.empty([num_tpoints, num_trials], dtype=int)
+    sniff_start = np.empty([num_trials, 1], dtype=int)
     #print sniff_flow.shape
 
     for i in range(num_trials):
         #print i
         tb=trialsBase[i]
-        sniff_flow[:,i]  = tb.sniffFlow
-        sniff_phase[:,i] = tb.sniffPhase[0:(num_tpoints)]
+        sniff_flow[:, i]  = tb.sniffFlow
+        sniff_phase[:, i] = tb.sniffPhase[0: (num_tpoints)]
         sniff_start[i] = tb.start
 
     #print tb.sniffFlow.shape
@@ -72,7 +72,7 @@ def get_baseline(spikesBase):
     #sr_t0     = np.array(spikesBase.t0, dtype = np.float)
 
     base_spikes = { 'spikes' : np.array(spikesBase.spikes, dtype=np.float),
-                    't_0'    : np.array(spikesBase.t0, dtype = np.float),
+                    't_0'    : np.array(spikesBase.t0, dtype=np.float),
                     't_1'    : spikesBase.t1,
                     't_2'    : spikesBase.t2,
                     'mouse ' : str(spikesBase.mouse),
@@ -200,8 +200,8 @@ def load_trials(mat_file_path, as_dict = True):
 #get a record from a matlab struct of a cell
 def get_rec(rec):
     cell_data = rec.cell
-    cell_odor_resp = {'odors'  : [ str(t) for t in rec.odors],
-                      'trialId': [ str(t) for t in rec.trialId],
+    cell_odor_resp = {'odors'  : [str(t) for t in rec.odors],
+                      'trialId': [str(t) for t in rec.trialId],
                       'concs'  : np.array(rec.concs, dtype=np.float),
                       'spikes' : np.array(rec.spikes, dtype=np.float),
                       't_0'    : np.array(rec.t0, dtype=np.int),
@@ -380,9 +380,9 @@ def cells_for_odor(responses, odor_aliases, odor_conc = ''):
             else:
                 if type(odor_conc) is float:
                     odor_conc = [odor_conc]
-                is_right_conc = any([conc_compare(x, y) for x in response['odor_resp']['concs'] for y in odor_conc])
+                is_right_conc = sum([conc_compare(x, y) for x in response['odor_resp']['concs'] for y in odor_conc])
 
-            if is_right_conc:
+            if is_right_conc > 10:
                 odor_responses.update({key: responses[key]})
     return odor_responses
 
@@ -423,9 +423,8 @@ def cells_by_tag(responses, tags):
         return responses
 
 #filter responses by the value of a single meta tag
-def conc_compare(conc1, conc2, tolerance=1.5):
-    return 1./float(tolerance) < float(conc1)/float(conc2) and float(conc1)/float(conc2) < float(tolerance)
-
+def conc_compare(conc1, conc2, tolerance=0.45):
+    return float(conc2) > (1. - tolerance) * float(conc1) and float(conc2) < (1. + tolerance) * float(conc1)
 
 #some tools for handling pieces of data
 #get warping parameters for a sniff loaded record

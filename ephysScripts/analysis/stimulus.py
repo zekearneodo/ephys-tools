@@ -131,6 +131,11 @@ class Response:
             else:
                 self.raster.update({key: val})
 
+        # get parameters for warping
+        all_sniffs = np.sort(self.baseline.sniff_data, order=['inh_len', 't_0'])
+        self.inh_len, self.exh_len = get_warping_parameters(all_sniffs, means=False)
+        self.inh_len_mean, self.exh_len_mean = get_warping_parameters(all_sniffs, means=True)
+
         #leave the object properties place holder for the plots:
         self.raster_plot = {'fig': None, 'ax_stack': None}
 
@@ -149,8 +154,12 @@ class Response:
         #sr_t2     = response['t_2']
 
         sr_spikes = raster
+
         if warped:
             t_post = sr_spikes.shape[1] - t_pre
+            inh_onset = self.inh_len
+        else:
+            inh_onset = self.inh_len_mean
 
         sr_t1 = -200
 
@@ -179,19 +188,26 @@ class Response:
         hist_ax.set_xticklabels([])
 
         #the onset of the response
-        if self.response_onset['onset'] not in [None, np.nan]:
+        if self.response_onset not in [None, np.nan] and self.response_onset['onset'] not in [None, np.nan]:
             onset = self.response_onset['onset']
+            # if warped:
+            #     onset = rf.unwarp_time(self, onset, inh_len=self.inh_len, exh_len=self.exh_len)
+
             line = 'g:' if self.response_onset['supra'] else 'm:'
             rs_on = hist_ax.plot((onset, onset),
                                  (0, psth[0][(onset+t0)//bin_size]), line,  linewidth=2.0)
+
+
         #the baseline
         #make the baseline for the cell
         bl_spikes = self.baseline.make_raster(t_pre=t_pre, t_post=t_post, warped=warped)
         #plot it
-        t0=t_pre
+        t0 = t_pre
         t1 = 0
-        t2=t_post+t_pre
+        t2 = t_post+t_pre
         base_line, hist_ax = plot_raster(bl_spikes, t0=t0, t1=t1, t2=t2, bin_size=bin_size, ax=hist_ax)
+        #plot the sniff onset tick
+        inh_on = hist_ax.plot((inh_onset, inh_onset), (0, max(psth[0])*1.2), 'y:')
 
         hist_ax.set_ylim(0,max(psth[0])*1.2)
         title = self.rec['meta']['id']
@@ -275,8 +291,8 @@ class Response:
         return raster
 
     #get the bin onset using the KS test and a large bin_size
-    def get_response_onset(self, bin_size = 10, warped=False):
-        onset, is_supra, ps, baseline_boot, ks_p, ks_stat, bl_value, onset_value = rf.find_detailed_onset(self, bin_size=bin_size, p_ks=0.01, p_bs=0.005, warped=warped)
+    def get_response_onset(self, bin_size=10, p_ks=0.025, warped=False):
+        onset, is_supra, ps, baseline_boot, ks_p, ks_stat, bl_value, onset_value = rf.find_detailed_onset(self, bin_size=bin_size, p_ks=p_ks, p_bs=0.005, warped=warped)
         self.response_onset = dict(onset=onset, supra=is_supra, p=ks_p, baseline=bl_value, response=onset_value)
 
 
@@ -301,6 +317,8 @@ class Baseline:
 
         if warped:
             inh_len, exh_len = get_warping_parameters(all_sniffs)
+            min_inh_len = int(round(np.mean(all_sniffs['inh_len'])/4))
+            min_exh_len = int(round(np.mean(all_sniffs['exh_len'])/4))
             t_2 = inh_len + exh_len
             t_1 = 0
         else:
@@ -312,6 +330,7 @@ class Baseline:
         t_range = t_2-t_1
         raster = np.zeros((n_sniffs,t_range))
         flows  = np.zeros((t_range, n_sniffs))
+        bad = []
 
         i_f =0
         for flow in all_sniffs['flow']:
@@ -320,6 +339,12 @@ class Baseline:
             if warped:
                 t_mid = all_sniffs[i_f]['t_zer_fit'][1]
                 t_end = all_sniffs[i_f]['t_zer'][2]
+
+                if t_mid - t_zer < min_inh_len or t_end-t_zer < min_exh_len:
+                    bad.append(i_f)
+                    i_f += 1
+                    continue
+
                 flows[0:inh_len,i_f] = resize_chunk(flow[t_zer:t_mid],inh_len)
                 flows[inh_len:inh_len+exh_len, i_f] = resize_chunk(flow[t_mid:t_end], exh_len)
 
@@ -352,7 +377,7 @@ class Baseline:
                     raster[i_f, spike_times] = 1
             i_f+=1
 
-
+        raster = np.delete(raster, bad, 0)
         #complete periodically to fit in t_pre, t_post
         if t_pre > 0:
             raster = np.append(raster[:, -t_pre:], raster, axis=1)

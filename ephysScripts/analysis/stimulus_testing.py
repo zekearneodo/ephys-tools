@@ -40,11 +40,14 @@ def main(argv):
     cells_path = os.path.join(fn.fold_exp_data, 'data_play')
     all_records = dl.load_cells(cells_path)
 
-    st_1 = st.Stimulus(high_2hydroxy, tags={'light':1, 'odor':1}, records = all_records)
+    st_1 = st.Stimulus(high_2hydroxy, tags={'light':0, 'odor':1}, records = all_records)
 
     print st_1.responsive_records.keys()
 
-    [r.plot(warped=True) for r in list(st_1.responses.values())]
+    r = st_1.responses['ZKawakeM72_004_h_019']
+    r.plot(warped=True)
+
+    #r.plot(warped=True) for r in list(st_1.responses.values())]
 
     return
 
