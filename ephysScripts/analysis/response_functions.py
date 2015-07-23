@@ -185,6 +185,23 @@ def warp_time(response, t):
 
         return t_warped
 
+
+# cound the spikes relative to baseline for both parts of the sniff cycle
+def count_spikes(response):
+    all_sniffs = np.sort(response.baseline.sniff_data, order=['inh_len', 't_0'])
+    inh_len, exh_len = get_warping_parameters(all_sniffs, means=False)
+    t_post = inh_len + exh_len
+
+    rst_sp = response.make_raster(t_pre=0, t_post=t_post, warped=True).mean(axis=0)
+    bl_sp = response.baseline.make_raster(t_pre=0, t_post=t_post, warped=True).mean(axis=0)
+
+    extra = rst_sp - bl_sp
+
+    inh_spikes = extra[0: inh_len].sum()/(inh_len*0.001)
+    exh_spikes = extra[inh_len: t_post].sum()/(inh_len*0.001)
+
+    return inh_spikes, exh_spikes
+
 def unwarp_time(response, t, inh_len=None, exh_len=None):
 
         if inh_len is None or exh_len is None:

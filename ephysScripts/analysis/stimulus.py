@@ -295,6 +295,9 @@ class Response:
         onset, is_supra, ps, baseline_boot, ks_p, ks_stat, bl_value, onset_value = rf.find_detailed_onset(self, bin_size=bin_size, p_ks=p_ks, p_bs=0.005, warped=warped)
         self.response_onset = dict(onset=onset, supra=is_supra, p=ks_p, baseline=bl_value, response=onset_value)
 
+    def get_spike_count(self):
+        spikes_inh, spikes_exh = rf.count_spikes(self)
+        return spikes_inh, spikes_exh
 
 class BaselineSniff:
     def __init__(self, rec_id, records):
