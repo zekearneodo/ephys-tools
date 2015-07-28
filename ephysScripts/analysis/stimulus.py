@@ -306,9 +306,12 @@ class Response:
 
     def get_spike_count(self):
         spikes_inh, spikes_exh = rf.count_spikes(self)
+<<<<<<< HEAD
 
         self.spikes = {'inh': spikes_inh, 'exh': spikes_exh, 'total': spikes_exh + spikes_inh}
 
+=======
+>>>>>>> 169f189aabff585adbc9a985967c42686ffef346
         return spikes_inh, spikes_exh
 
 class BaselineSniff:
