@@ -746,12 +746,17 @@ badSniffs = 0;
 no_stim_sniffs = zeros(1,numel(sniff));
 for is=1:numel(sniff)
     sn=sniff(is);
+    good_sniff = true;
     t_inh = sn.t0+sn.t_zer(1);
     %check if it is within a trial
     prev_trial_on = find([trial.start]< t_inh,1,'last');
+    %check if the sniff is fine:
+    if sn.t_zer_fit(2) <= sn.t_zer(1) | sn.t_zer(3) <= sn.t_zer_fit(2) | any(imag(sn.t_zer_fit)>0)
+        good_sniff = false;
+    end
     % there is no prev trial
     % or the prev trial ended more than 5 secs ago
-    if ( isempty(prev_trial_on) | t_inh > (trial(prev_trial_on).start + trial(prev_trial_on).runTrialDur + 5000));
+    if ( isempty(prev_trial_on) | t_inh > (trial(prev_trial_on).start + trial(prev_trial_on).runTrialDur + 5000)) & good_sniff
         no_stim_sniffs(is) = 1;
     end
     

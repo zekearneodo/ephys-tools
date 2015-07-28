@@ -63,12 +63,13 @@ if doit>0
     keepCells3 = strcmpi('KPawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==23 | [cellsArray.sess]==24);
     keepCells4 = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==28 | [cellsArray.sess]==29 | [cellsArray.sess]==15);
     
-    keepCells = keepCells1 + keepCells2 + keepCells3 + keepCells4;
+    keepCells5 = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==30)
+    keepCells = keepCells1 + keepCells2 + keepCells3 + keepCells4 + keepCells5;
    
     
     if doit ==2
         %for neil debugging:
-        keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==4);
+        %keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==28);
     end
     
     cellsArray(~keepCells)=[];
@@ -77,7 +78,7 @@ if doit>0
     % now you got an array of cells for the suffixes
     %with the cells selected, make all the units and place them ein the
     %export_data folder
-    units_meta(cellsArray);
+    %units_meta(cellsArray);
     
     % now go through all those cells and:
     % - find them in all the recs they appear in
@@ -391,7 +392,7 @@ fn = file_names(mouse,sess,rec);
 trial = neil_trial_structure(mouse,sess,rec, doit);
 
 if all(strcmpi(sTypes,{'odor'}))
-    non_odor_trials = (cellfun(@(x) any(strcmpi(x, {'none', 'empty', 'not-an-event', 'dummy'})),{trial.odorName}));
+    non_odor_trials = (cellfun(@(x) any(strcmpi(x, {'none', 'empty', 'not-an-event', 'not_an_event', 'dummy'})),{trial.odorName}));
     trial(non_odor_trials)=[];
 end
 
@@ -529,6 +530,7 @@ t1 = -200;
 t2 = 2500-1;
 
 trials = [];
+bad_sniffs = 0;
 for it=1:numel(trial)
     ttr = trial(it);
     tr.start      = ttr.start+t1;
@@ -581,7 +583,8 @@ for it=1:numel(trial)
             spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)));
             tr.sniffZeroTimes = ttr.sniffZeroTimes;
             if doit ==2
-                tr.spZeros = spZeros;
+                %iOnset = find(ttr.sniffZeroTimes(1,:)>=0,1,'first');
+                tr.spZeros = real(spZeros);
             end
             %         sz = spZeros - t1*ones(size(spZeros));
             %         firstSnif = find(sz>0,1,'first');
@@ -593,12 +596,18 @@ for it=1:numel(trial)
             %         sn(sz(lastSnif):end)=bitget(lastSnif,1);
             %         sn(sn==0)=-1;
             %         tr.sniffPhase = sn;
-            trials = [trials tr];
+            
         end
     catch
         warning('Error in sniff phases of trial %d - %d',ttr.run,ttr.runTrialNum);
         tr.sniffPhase = nan;
+        
     end
+    trials = [trials tr];
+end
+
+if bad_sniffs>0
+    warning('%d bad sniff fits in %s, %3d, %s', mouse, sess, rec)
 end
 
 end

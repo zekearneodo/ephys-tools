@@ -7,16 +7,16 @@
 % - data_structure_tools
 
 mouse ='ZKawakeM72';
-sess = 15;
+sess = 30;
 
 pp=post_processing_tools();
 
-pp.trial_prep(mouse,sess,'trFunc','trial_build_trial_numbers', 'recList', {'b','c','d','e'})
+pp.trial_prep(mouse,sess,'trFunc','trial_build_trial_numbers')
 pp.sniffs_to_trials(mouse,sess);
 pp.spikes_to_trials(mouse,sess,'NewSpikes',true);
 
 %%
-rec = 'b';
+rec = 'e';
 %pp.spikes_to_trials(mouse,sess,rec,'NewSpikes',true);
 fn = file_names(mouse,sess,rec);
 

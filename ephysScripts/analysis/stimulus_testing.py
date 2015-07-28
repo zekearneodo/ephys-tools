@@ -38,14 +38,19 @@ def main(argv):
 
     high_2hydroxy = st.Odor(['2-hydroxyacetophenone','2hydroxyacetophenone'], 0.0051)
     cells_path = os.path.join(fn.fold_exp_data, 'data_play')
-    all_records = dl.load_cells(cells_path)
+    uf = dl.list_cells(cells_path)
+
+    all_cells = [f for f in uf if f.find('KPawakeM72_019')>-1]
+
+    print all_cells
+    all_records = dl.load_cells(cells_path, all_cells)
 
     st_1 = st.Stimulus(high_2hydroxy, tags={'light':0, 'odor':1}, records = all_records)
 
     print st_1.responsive_records.keys()
 
-    r = st_1.responses['ZKawakeM72_004_h_019']
-    r.plot(warped=True)
+    #r = st_1.responses['ZKawakeM72_004_h_019']
+    #r.plot(warped=True)
 
     #r.plot(warped=True) for r in list(st_1.responses.values())]
 

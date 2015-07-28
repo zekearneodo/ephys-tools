@@ -109,7 +109,7 @@ def load_baseline(mat_file_path, as_dict = True):
 
 #Load a sniff file into a rec array
 def load_sniffs(mat_file_path, as_dict = True):
-    print mat_file_path
+    #print mat_file_path
     assert(os.path.isfile(mat_file_path))
     struct_name = os.path.split(mat_file_path)[-1].split('.')[0].split('_')[-1]
     sniff_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
@@ -147,8 +147,8 @@ def load_sniffs(mat_file_path, as_dict = True):
 
 # load the spikes of a unit (for a given rec)
 def load_spikes(mat_file_path, as_dict = True):
+    #print (mat_file_path)
     assert(os.path.isfile(mat_file_path))
-    print (mat_file_path)
     spike_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
     spikes_loaded = spike_data['thisUnit']
     return np.array(spikes_loaded.times.round(), dtype=np.int)
@@ -158,7 +158,7 @@ def load_spikes(mat_file_path, as_dict = True):
 # load trials file
 def load_trials(mat_file_path, as_dict = True):
     assert(os.path.isfile(mat_file_path))
-    print (mat_file_path)
+    #print (mat_file_path)
     trial_data = sio.loadmat(mat_file_path, struct_as_record=False, squeeze_me=True)
     #get the rec_id, mouse, rec, sess from the file name
     rec_id = os.path.split(mat_file_path)[-1].split('trial.mat')[0][:-1]
@@ -228,6 +228,7 @@ def get_rec(rec):
               }
     return record
 
+
 #Load a record (cell file)
 def load_cell(mat_file_path, as_dict = False):
     assert(os.path.isfile(mat_file_path))
@@ -286,15 +287,25 @@ def load_unit(mat_file_path, as_dict=True):
         return unit
 
 
+#list the cells in a path
+def list_cells(cells_path):
+    all_cells = [f for f in os.listdir(cells_path) if os.path.isfile(os.path.join(cells_path,f)) ]
+    all_units = [f[0:-9] for f in all_cells if f.find('cell.mat')>0]
+    return all_units
+
 # get all the units
 # get all units that have records, and get the corresponding trials, baselines and baseline sniffs.
-def load_cells(cells_path=''):
+def load_cells(cells_path='', cells_list = None):
     """
     :param cells_path: folder with the exportable matlab files. default is taken from fn.fold_exp_data
     :return: records (list of all the records of all the cells)
     """
-    all_cells = [f for f in os.listdir(cells_path) if os.path.isfile(os.path.join(cells_path,f)) ]
-    unit_files = [f for f in all_cells if f.find('cell.mat')>0]
+
+    if cells_list is None:
+        all_cells = [f for f in os.listdir(cells_path) if os.path.isfile(os.path.join(cells_path,f)) ]
+        unit_files = [f for f in all_cells if f.find('cell.mat')>0]
+    else:
+        unit_files = [f + '_cell.mat' for f in cells_list]
 
     responses  = {} # the rasters and stim sets of every unit recorded
 
@@ -317,14 +328,14 @@ def load_cells(cells_path=''):
     for unit_file in unit_files:
         i_f+=1
         rec_file = os.path.join(cells_path,unit_file)
-        #print unit_file
+        print rec_file
         unit_recs = load_cell(rec_file, as_dict = True)
         responses.update(unit_recs)
         #get the baselines for those recs
         base_path = os.path.join(cells_path, unit_recs.itervalues().next()['meta']['u_id'] + '_spikesBase.mat')
         #print base_path
         rec_bases = load_baseline(base_path)
-        print rec_bases.keys()
+        #print rec_bases.keys()
         baselines.update(rec_bases)
 
         for a_key in unit_data.keys():
@@ -349,7 +360,7 @@ def load_cells(cells_path=''):
 
             paths = [os.path.join(cells_path, a_rec['rec_id'] + load_name_tail) \
                      for a_rec in unit_recs.itervalues() if a_rec['rec_id'] not in load_dict]
-            print paths
+            #print paths
             [load_dict.update(load_function(a_path)) for a_path in paths]
 
     records = {'responses':  responses,

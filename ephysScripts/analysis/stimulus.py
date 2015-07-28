@@ -25,7 +25,7 @@ import response_functions as rf
 
 
 class Stimulus:
-    def __init__(self, odor=None, laser=None, records=None, tags=None, root=experiment_folder):
+    def __init__(self, odor=None, laser=None, records=None, tags=None, root=experiment_folder, extra_plot_pars=None):
         """
         :param odor: odor object
         :param laser: laser object
@@ -67,6 +67,13 @@ class Stimulus:
         self.responses = {}
 
         self.load_responses(tags)
+
+        plot_pars= {'color': 'B6B6B4', 'marker': 'o', 'alpha': .25, 'ms': 8, 'lw': 0}
+        if extra_plot_pars is not None:
+            for key, value in extra_plot_pars.iteritems():
+                plot_pars.update({key: value})
+        self.plot_pars= plot_pars
+
 
     #get all the responses for that stimulus with extra tags (lightral, ...)
     def load_responses(self, tags=None, **kwargs):
@@ -140,6 +147,8 @@ class Response:
         self.raster_plot = {'fig': None, 'ax_stack': None}
 
         self.response_onset = None
+
+        self.spikes = {'inh': None, 'exh': None, 'total': None}
 
     def plot(self, t_pre=200, t_post=400, bin_size=10, warped=False):
 
@@ -295,6 +304,12 @@ class Response:
         onset, is_supra, ps, baseline_boot, ks_p, ks_stat, bl_value, onset_value = rf.find_detailed_onset(self, bin_size=bin_size, p_ks=p_ks, p_bs=0.005, warped=warped)
         self.response_onset = dict(onset=onset, supra=is_supra, p=ks_p, baseline=bl_value, response=onset_value)
 
+    def get_spike_count(self):
+        spikes_inh, spikes_exh = rf.count_spikes(self)
+
+        self.spikes = {'inh': spikes_inh, 'exh': spikes_exh, 'total': spikes_exh + spikes_inh}
+
+        return spikes_inh, spikes_exh
 
 class BaselineSniff:
     def __init__(self, rec_id, records):
