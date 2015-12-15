@@ -84,15 +84,16 @@ end
 if strcmp(sType,'laser')
     vp.t1=-200;
     vp.t2= 400;
-    vp.responseWindowDefault=100;
+    vp.bin = 5;
+    vp.responseWindowDefault=50;
 else
     vp.t1  = -200;
     vp.t2  =  400;
+    vp.bin = 20;
     vp.responseWindowDefault=200;
 end
     
 vp.nt  = vp.t2-vp.t1;
-vp.bin = 20;
 vp.t   = mean(reshape((vp.t1+1):vp.t2, vp.bin , vp.nt/vp.bin),1);
 vp.smooth.wsize = round(vp.nt/8); % window size for gaussian smoothing of histo for plotting
 vp.smooth.cutof = 100; % cutoff for the gausiann smoothing
@@ -410,6 +411,7 @@ rateBase=rateBase/(nb); %divide by number of "trials"
 %kp's accounting for spikes in the baseline
 
 rateBaseHist = sum(reshape(rateBase, bin, nt/bin),1)/(bin/1000); %units is Hz
+rateBaseSTD  = std(reshape(rateBase, bin, nt/bin),1)/(bin/1000);
 avgRateBase = mean(rateBase)*1000; %units is Hz
 
 
@@ -420,13 +422,14 @@ avgRateBase = mean(rateBase)*1000; %units is Hz
 for ks = 1:numel(stim)
     %if its odor trial the response window is the average duration of first
     %sniff
-    if ~any(strcmpi(stim(ks).odorName,{'none','dummy'}))
+    if ~any(strcmpi(stim(ks).odorName,{'none','dummy','not_an_event'}))
         vp.responseWindow=mean(inhLenStim);
     else
-        vp.responseWindow=400;
+        vp.responseWindow=100;
     end
     timeObs=t1+1:t2;
     responseWindow=vp.responseWindow;
+    responseBins = ceil(responseWindow/bin);
     spkCountBase = sum(rateBase(timeObs>0 & timeObs<responseWindow));
     nSpikesBase=sum(rateBaseHist(t>0 & t<responseWindow)*bin)/1000;
     nSpikesBaseAvg=avgRateBase*responseWindow/1000;
@@ -505,13 +508,13 @@ for ks = 1:numel(stim)
     
     
     baseline=mean(rate(t<0));
-    pkThresh=baseline + 3.*std(rate(t<0));
-    [pkRate,pkInd]=findpeaks(rate(t>0),'MINPEAKHEIGHT',pkThresh,'NPEAKS',1);
-    pkTime=t(pkInd+find(t>0,1)-1);
+    pkThresh=baseline + 4.*std(rate(t<0));
+    [pkRate,pkInd]=findpeaks(rate(t>=-bin),'MINPEAKHEIGHT',pkThresh,'NPEAKS',1);
+    pkTime=t(pkInd+find(t>=-bin,1)-1);
     
     if isempty(pkTime)
-        pkTime=0;
-        pkRate=0;
+        pkTime=nan;
+        pkRate=nan;
     end
     
     nSpikes=(sum(rate(t>0 & t<responseWindow)*bin))/1000;
@@ -563,6 +566,8 @@ for ks = 1:numel(stim)
     avg_nSpks = mean([ISI(:).nSpks]);
     avg_ISI = mean([ISI(isfinite([ISI(:).avgISI])).avgISI]);
     
+    % Find first significant deviation from baseline (neil style)
+    rateBaseThresh = rateBaseHist + 3*rateBaseSTD;
     
     vd.resp(ks).rateBase        = rateBase;
     vd.resp(ks).spkCountBase    = spkCountBase;

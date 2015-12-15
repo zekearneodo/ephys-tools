@@ -63,17 +63,38 @@ if doit>0
     keepCells3 = strcmpi('KPawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==23 | [cellsArray.sess]==24);
     keepCells4 = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==28 | [cellsArray.sess]==29 | [cellsArray.sess]==15);
     
-    keepCells5 = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==30)
-    keepCells = keepCells1 + keepCells2 + keepCells3 + keepCells4 + keepCells5;
-   
+    keepCells5 = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==30 | [cellsArray.sess]==31);
     
+    keepCells6 = strcmpi('KPawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==27 | [cellsArray.sess]==28);
+    
+    keepCells = keepCells1 + keepCells2 + keepCells3 + keepCells4 + keepCells5 + keepCells6;
+   
+   
     if doit ==2
         %for neil debugging:
-        %keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==28);
+        %keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==13);
+    end
+    
+    if doit ==12
+        %for neil debugging:
+        keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==13);
+        doit = 1;
+    end
+    
+    if doit ==13
+        %for sess 31 rec d debugging:
+        keepCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==31) & strcmpi('d', {cellsArray.rec});
+        doit = 1;
     end
     
     cellsArray(~keepCells)=[];
-    cellsArray(~([cellsArray.quality]==1))=[];
+    
+    %reomove cells from particular recordings
+    removeCells = strcmpi('ZKawakeM72',{cellsArray.mouse}) & ([cellsArray.sess]==31) & strcmpi('d', {cellsArray.rec});
+    cellsArray(removeCells) = [];
+    
+    cellsArray(~([cellsArray.quality]==1 | [cellsArray.quality]==3))=[];
+    
     %cellsArray(~([cellsArray.light]==1))=[];
     % now you got an array of cells for the suffixes
     %with the cells selected, make all the units and place them ein the
@@ -143,7 +164,7 @@ for im=1:numel(mice)
                 theCell  = recCells(ic);
                 fn=file_names(theCell.mouse,theCell.sess,theCell.rec);
                 oneUnit = merge_clusters(theCell.mouse,theCell.sess,theCell.rec,theCell.clu);
-                oneUnit.uId = theCell.uId;
+                oneUnit.unitId = theCell.uId;
                 oneUnit.sessCell = theCell.sessCell;
                 unit = [unit oneUnit];
                 save(fn.exp_spikes,'unit');
@@ -191,7 +212,7 @@ for ic = 1:numel(cells_uId)
     
     one_cell.mouse  = this_cell_instances(1).mouse;
     one_cell.sess   = this_cell_instances(1).sess;
-    one_cell.uid    = sprintf('%s_%03d_%03d',one_cell.mouse,one_cell.sess,this_cell_instances(1).sessCell);
+    one_cell.unitId = sprintf('%s_%03d_%03d',one_cell.mouse,one_cell.sess,this_cell_instances(1).sessCell);
     
     %get info of the recording to add to the cell
     sess_info = cp.load_info(this_cell_instances(1));
@@ -243,11 +264,11 @@ for ic = 1:numel(cells_uId)
     
     %save it
     fn=file_names(one_cell.mouse,one_cell.sess);
-    cellFn=fullfile(fn.fold_exp_data,sprintf('%s_cell.mat',one_cell.uid));
+    cellFn=fullfile(fn.fold_exp_data,sprintf('%s_cell.mat',one_cell.unitId));
     save(cellFn,'-struct','one_cell');
     
     %save the baseline
-    baseFn = fullfile(fn.fold_exp_data,sprintf('%s_spikesBase.mat',one_cell.uid));
+    baseFn = fullfile(fn.fold_exp_data,sprintf('%s_spikesBase.mat',one_cell.unitId));
     save(baseFn,'spikesBase');
     
 end
@@ -261,8 +282,8 @@ function [raster] = do_raster(trial, sp, s_type)
 %trial : trial structure
 %sp : vector of spike times of the unit
 %sType : stimulus type
-t1 = -200;
-t2 = 2500;
+t1 = 0;
+t2 = 5500;
 
 %before continuing, reduce the trials to only the ones that have the
 %stimulus
@@ -272,9 +293,9 @@ switch lower(s_type)
     case 'odor'
         trial([trial.laserAmp]>0) = [];
         trial(strcmpi('none',{trial.odorName}) | strcmpi('empty',{trial.odorName}) | strcmpi('empty',{trial.odorName})| strcmpi('not_an_event',{trial.odorName})) = [];
-        keep.odors      = {trial.odorName};
-        keep.concs      = [trial.odorConc];
-        align = 'sniff';
+        keep.odorName = {trial.odorName};
+        keep.odorConc = [trial.odorConc];
+        align = 'trial';
         %do only laser raster
     case {'laser', 'light'}
         trial([trial.laserAmp]<1) = [];
@@ -288,12 +309,12 @@ switch lower(s_type)
     case {'odor_light'}
         trial([trial.laserAmp]<1) = [];
         trial(strcmpi('none',{trial.odorName}) | strcmpi('empty',{trial.odorName}) | strcmpi('empty',{trial.odorName}) | strcmpi('not_an_event',{trial.odorName})) = [];
-        keep.odors       = {trial.odorName};
-        keep.concs       = [trial.odorConc];
+        keep.odorName = {trial.odorName};
+        keep.odorConc = [trial.odorConc];
         keep.laser_amps  = [trial.laserAmp];
         keep.laser_pows  = {trial.laserPower};
         keep.laser_times = [trial.laserTimes];
-        align = 'sniff';
+        align = 'trial';
 end
 
 nt=numel(trial);
@@ -302,8 +323,8 @@ if nt<1
     return
 end
 
-trialId = {trial.id};
-tVec = (t1:t2);
+trialId = {trial.trialId};
+tVec = (t1:t2-1);
 spikes = zeros(nt,length(tVec));
 t0Vec = nan(1,numel(trial));
 x    = zeros(1e5,1);    y    = zeros(1e5,1);
@@ -318,18 +339,21 @@ for it = 1:nt
             if isempty(ii) || ii<1
                 continue
             end
-            t0 = trial(it).sniffZeroTimes(1,ii) + trial(it).start;
+            t0 = trial(it).sniffZeroTimes(1,ii) + trial(it).t0;
         case 'laser'
-            t0 = trial(it).laserTimes(1) + trial(it).start;
+            t0 = trial(it).laserTimes(1) + trial(it).t0;
             if isempty(ii) || ii<1
                 delay = nan;
             else
                 delay = trial(it).laserTimes(1) - trial(it).sniffZeroTimes(1,ii);
             end
             keep.laserDelay(it) = delay;
+        case 'trial'
+            t0 = trial(it).t0;
+            
     end
     
-    spikeTimes = sp((sp>t0+t1)&(sp<t0+t2))-t0;
+    spikeTimes = sp((sp>t0+t1)&(sp<t0+t2-1))-t0;
     t0Vec(it) = t0;
     % compact raster
     n=numel(spikeTimes);
@@ -343,8 +367,8 @@ end
 x = x(1:nsp);
 y = y(1:nsp);
 
-%     figure
-%     plot(x,y,'.','MarkerSize',7);
+    %figure
+    %plot(x,y,'.','MarkerSize',7);
 %
 %%%%%%%%%%%%%%%
 
@@ -473,7 +497,7 @@ x    = zeros(1e5,1);    y    = zeros(1e5,1);
 nsp = 0;
 
 for it = 1:nt
-    t0 = trial(it).start;
+    t0 = trial(it).t0;
     
     spikeTimes = sp((sp>t0+t1)&(sp<t0+t2))-t0;
     t0Vec(it) = t0;
@@ -502,7 +526,7 @@ raster.trialId = trialId;
 raster.mouse   = mouse;
 raster.sess    = sess;
 raster.rec     = rec;
-raster.uid     = thisCell.uId;
+raster.unitId  = thisCell.uId;
 raster.t0      = t0Vec;
 raster.t1      = t1;
 raster.t2      = t2;
@@ -526,19 +550,20 @@ rsmSniff = load(fn.rsm_data,'Sniff');
 %this will be used to produce the rasters for light, odor and light+odor
 %trials
 
-t1 = -200;
-t2 = 2500-1;
+t1 = -3000;
+t2 = 2500;
 
 trials = [];
 bad_sniffs = 0;
+%center the trials around the first inhale after onset of final valve
 for it=1:numel(trial)
     ttr = trial(it);
-    tr.start      = ttr.start+t1;
-    if isempty(tr.start) || isnan(ttr.start) || ttr.start+t1<1
+    tr.t0      = ttr.start+t1;
+    if isempty(tr.t0) || isnan(ttr.start) || ttr.start+t1<1
         continue
     end
     tVec          = ttr.start + (t1:t2-1); %absolute times of the trial chunk
-    tr.id         = sprintf('%s_%03d_%s_%d',mouse,sess,rec,ttr.start);
+    tr.trialId    = sprintf('%s_%03d_%s_%d',mouse,sess,rec,tr.t0);
     tr.odorName   = ttr.odorName;
     tr.odorConc   = ttr.odorConc;
     %laser data
@@ -568,20 +593,20 @@ for it=1:numel(trial)
     %some debugging:
     %plot the sniff, the stimulus and the sniffZero times for this trial
     %and check how they align:
-    %     figure
-    %     hold on
-    %     plot(tr.flow*-1)
-    %     plot(tr.stim*10000,'r')
-    %     plot(ttr.sniffZeroTimes(1,:)-t1,zeros(size(ttr.sniffZeroTimes(1,:))),'k*')
-    %     plot(ttr.sniffZeroTimes(2,:)-t1,zeros(size(ttr.sniffZeroTimes(2,:))),'go')
-    %     plot(ttr.sniffParabZeroTimes(2,:)-t1,zeros(size(ttr.sniffParabZeroTimes(2,:))),'mx')
+%         figure
+%         hold on
+%         plot(tr.flow*-1)
+%         plot(tr.stim*10000,'r')
+%         plot(ttr.sniffZeroTimes(1,:)-t1,zeros(size(ttr.sniffZeroTimes(1,:))),'k*')
+%         plot(ttr.sniffZeroTimes(2,:)-t1,zeros(size(ttr.sniffZeroTimes(2,:))),'go')
+%         plot(ttr.sniffParabZeroTimes(2,:)-t1,zeros(size(ttr.sniffParabZeroTimes(2,:))),'mx')
     sn = zeros(size(tr.stim));
     try
         if ~any(isnan(ttr.sniffParabZeroTimes(2,:)))
             spZeros=[];
-            spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)));
-            spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)));
-            tr.sniffZeroTimes = ttr.sniffZeroTimes;
+            spZeros(2,:) = round((ttr.sniffParabZeroTimes(2,:)))-t1;
+            spZeros(1,:) = round((ttr.sniffZeroTimes(1,:)))-t1;
+            tr.sniffZeroTimes = ttr.sniffZeroTimes-t1;
             if doit ==2
                 %iOnset = find(ttr.sniffZeroTimes(1,:)>=0,1,'first');
                 tr.spZeros = real(spZeros);
@@ -675,7 +700,7 @@ for ifv=1:numel(eventOnTimes)
     % is a sniff not within a stimulus
     %sn_zeros = sn.t_zer - (150+t1);
     
-    tr.start = t_inh +t1;
+    tr.t0 = t_inh +t1;
     
     %if any(sn_zeros(2:3)<1) || (t_inh + t2) > numel(SniffTrace)
     if (t_inh + t2) > numel(SniffTrace)
@@ -683,9 +708,9 @@ for ifv=1:numel(eventOnTimes)
         badSniffs = badSniffs+1;
         continue
     end
-    tr.trialUId = [fn.basename_an 'trial' num2str(tr.start)];
+    tr.trialUId = [fn.basename_an 'trial' num2str(tr.t0)];
     try
-        tr.sniffFlow = SniffTrace(tr.start:t_inh+t2);
+        tr.sniffFlow = SniffTrace(tr.t0:t_inh+t2);
     catch me
         warning('sniff begins too early or ends too late for chopping the right segment around it (sniff %d)',ifv);
         continue;
@@ -699,7 +724,7 @@ for ifv=1:numel(eventOnTimes)
     
     %for debugging
     %         figure
-    %         plot(-SniffTrace(tr.start:(tr.start+1000)));
+    %         plot(-SniffTrace(tr.t0:(tr.t0+1000)));
     %         hold on
     %         plot(-tr.sniffFlow,'r');
     %         plot(sn_zeros,[0 0 0],'b*');

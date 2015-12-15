@@ -437,6 +437,17 @@ def cells_by_tag(responses, tags):
 def conc_compare(conc1, conc2, tolerance=0.45):
     return float(conc2) > (1. - tolerance) * float(conc1) and float(conc2) < (1. + tolerance) * float(conc1)
 
+#merge responses of a rec into a single cell set
+def merge_responses(responses):
+    new_responses = {}
+    cells_set = set([value.rec['meta']['u_id'] for value in responses.itervalues()])
+    #for every cell in the set find and merge all the responsive records
+    for u_id in cells_set:
+        #get the list of cells with that u_id
+        this_set = {u_id: [r for r in responses.itervalues() if r.rec['meta']['u_id'] == u_id]}
+        new_responses.update(this_set)
+    return new_responses
+
 #some tools for handling pieces of data
 #get warping parameters for a sniff loaded record
 def get_warping_parameters(sniff, means = False):

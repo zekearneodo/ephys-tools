@@ -83,7 +83,10 @@ end
             %events, but it's a good idea to run double-checks
             
             %%% Odor stimuli
-            ot = find([odor_events.trialNumber]==trial_number);
+            ot = [];
+            if ~isempty(odor_events)
+                ot = find([odor_events.trialNumber]==trial_number);
+            end
             odor_check = 1;
             conc_check = 1;
             

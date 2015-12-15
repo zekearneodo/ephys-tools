@@ -170,6 +170,10 @@ function table = events_lookup(ev,tn,mouse,sess,rec,irun)
 % tn is a matched_trial_numbers structure
 
 events = get_analog_events(ev.chanId,mouse,sess,rec,irun,'figures','noplot');
+if isempty(events)
+    table = [];
+    return
+end
 % go through all the trial numbers that have a good trial pin and find the
 % events whithin that trial
 eventsTrials = [];
@@ -191,7 +195,13 @@ end
 % this yelds a list of {trial number, index of event pins within % trial}
 % now send the events and the eventsTrials to the tableFcn that corresponds
 % to that event and make the table
+n_evt = numel(eventsTrials(:,1));
+if n_evt<2
+    table = [];
+    return
+end
 table = ev.tableFcn(ev,events, eventsTrials,mouse,sess,rec,irun);
+
 % now do some table to h5 something
 
 end
@@ -403,6 +413,12 @@ eventOnOff(eventData>threshold)=1;
 
 eventOnSample  = find(diff(eventOnOff)==1);
 eventOffSample = find(diff(eventOnOff)==-1);
+
+if isempty(eventOnSample) || isempty(eventOffSample)
+    warning('No events found, returning empty');
+    onEvents = [];
+    return
+end
 
 if eventOffSample(1)<eventOnSample(1)
     eventOffSample(1)=[];

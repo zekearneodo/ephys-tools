@@ -7,6 +7,7 @@ import itertools
 import matplotlib.pyplot as plt
 from data_handling.data_load import get_warping_parameters
 from data_handling.basic_plot import decim, col_binned, plot_raster, make_psth
+import stimulus as st
 
 
 # compare one raster against another one with many more trials
@@ -65,24 +66,32 @@ def raster_compare(stimulus_sa, baseline_sa, bootstrap=False):
 # find the onset of a divergence of the two series of bins with a p-value lower than p
 def find_onset(response, bin_size=10, t_post=0, p=0.05, warped=False, debug=False):
     """
-    :param response: response object (with baseline)
+    :param response: response object (with baseline) or cellResponse object
     :param bin_size: size of the bin for comparison (int)
     :param t_post: time after onset of stimulus (or sniff) for the search
     :param p: p-value for accepting the hypothesis (ks test)
     :param warped: whether to warp the data or not
     :return:    onset: first bin of significant difference (np.nan if no significant diff found in range)
-                supra: wether the deviation is above or below baseline
+                supra: whether the deviation is above or below baseline
     """
-    if t_post == 0:
-        all_sniffs = np.sort(response.baseline.sniff_data, order=['inh_len', 't_0'])
-        if warped:
-            inh_len, exh_len = get_warping_parameters(all_sniffs, means=False)
-        else:
-            inh_len, exh_len = get_warping_parameters(all_sniffs, means=True)
-        t_post = inh_len + exh_len
+    if isinstance(response, st.CellResponse):
+        t_post = response.inh_len + response.exh_len if t_post == 0 else t_post
 
-    rst_sa = col_binned(response.make_raster(t_pre=0, t_post=t_post, warped=warped), bin_size).transpose()
-    bl_sa = col_binned(response.baseline.make_raster(t_pre=0, t_post=t_post, warped=warped), bin_size).transpose()
+        rst_sa, bl_sa = response.make_raster(t_pre=0, t_post=t_post, warped=warped)
+        rst_sa = col_binned(rst_sa, bin_size).transpose()
+        bl_sa = col_binned(bl_sa, bin_size).transpose()
+    else:
+
+        if t_post == 0:
+            all_sniffs = np.sort(response.baseline.sniff_data, order=['inh_len', 't_0'])
+            if warped:
+                inh_len, exh_len = get_warping_parameters(all_sniffs, means=False)
+            else:
+                inh_len, exh_len = get_warping_parameters(all_sniffs, means=True)
+            t_post = inh_len + exh_len
+
+        rst_sa = col_binned(response.make_raster(t_pre=0, t_post=t_post, warped=warped), bin_size).transpose()
+        bl_sa = col_binned(response.baseline.make_raster(t_pre=0, t_post=t_post, warped=warped), bin_size).transpose()
 
     # get the statistics
     _, _, ks, kst = raster_compare(rst_sa, bl_sa, bootstrap=False)
@@ -124,7 +133,7 @@ def find_onset(response, bin_size=10, t_post=0, p=0.05, warped=False, debug=Fals
 def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.05, p_bs=0.001, warped=False, t_post=0):
     #get the bin onset using the KS test and a large bin_size
     """
-    :param response: response object (with baseline)
+    :param response: Response object (with baseline) or CellResponse object
     :param bin_size: size of the bin for comparison (int)
     :param precision: size of the bin for the second step (bootstrap test)
     :param p_ks: p-value for rejecting null hypothesis in first step
@@ -142,8 +151,14 @@ def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.05, p_bs=0.00
     t1 = int(round(onset-1)*bin_size)
     t1 = max(0, t1)
     t2 = t1 + 2*bin_size
-    rst = response.make_raster(t_pre=0, t_post=t2 + bin_size, warped=warped)[:, t1:t2 + bin_size]
-    bl = response.baseline.make_raster(t_pre=0, t_post=t2 + bin_size, warped=warped)[:, t1:t2 + bin_size]
+
+    if isinstance(response, st.CellResponse):
+        rst, bl = response.make_raster(t_pre=0, t_post = t2 + bin_size, warped=warped)
+        rst = rst[:, t1:t2 + bin_size]
+        bl = bl[:, t1:t2 + bin_size]
+    else:
+        rst = response.make_raster(t_pre=0, t_post=t2 + bin_size, warped=warped)[:, t1:t2 + bin_size]
+        bl = response.baseline.make_raster(t_pre=0, t_post=t2 + bin_size, warped=warped)[:, t1:t2 + bin_size]
 
     rst_sa = col_binned(rst, precision).transpose()
     bl_sa = col_binned(bl, precision).transpose()
@@ -164,8 +179,8 @@ def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.05, p_bs=0.00
     onset_value = rst_sa.mean(axis=1)[t_on: t_on + bin_size].sum()/(bin_size*0.001)
 
     #if warped, return the value in sniff value
-    if warped:
-        warped_onset = warp_time(response, final_onset)
+    #if warped:
+        #warped_onset = warp_time(response, final_onset)
         #final_onset = warped_onset
 
     #bl_value = bl_sa
@@ -173,27 +188,25 @@ def find_detailed_onset(response, bin_size=10, precision=1, p_ks=0.05, p_bs=0.00
     return final_onset, is_supra, ps, baseline_boot, ks_p, ks_stat, bl_value, onset_value
 
 
-def warp_time(response, t):
+# count the spikes relative to baseline for both parts of the sniff cycle
+def count_spikes(response):
 
+    if isinstance(response, st.CellResponse):
+        inh_len = response.inh_len
+        exh_len = response.exh_len
+        t_post = inh_len + exh_len
+
+        rst, bl = response.make_raster(t_pre=0, t_post = t_post, warped=True)
+        rst_sp = rst.mean(axis=0)
+        bl_sp = bl.mean(axis=0)
+
+    else:
         all_sniffs = np.sort(response.baseline.sniff_data, order=['inh_len', 't_0'])
         inh_len, exh_len = get_warping_parameters(all_sniffs, means=False)
+        t_post = inh_len + exh_len
 
-        if t <= inh_len:
-            t_warped = t/inh_len
-        else:
-            t_warped = 0.5 + (t-inh_len)/exh_len
-
-        return t_warped
-
-
-# cound the spikes relative to baseline for both parts of the sniff cycle
-def count_spikes(response):
-    all_sniffs = np.sort(response.baseline.sniff_data, order=['inh_len', 't_0'])
-    inh_len, exh_len = get_warping_parameters(all_sniffs, means=False)
-    t_post = inh_len + exh_len
-
-    rst_sp = response.make_raster(t_pre=0, t_post=t_post, warped=True).mean(axis=0)
-    bl_sp = response.baseline.make_raster(t_pre=0, t_post=t_post, warped=True).mean(axis=0)
+        rst_sp = response.make_raster(t_pre=0, t_post=t_post, warped=True).mean(axis=0)
+        bl_sp = response.baseline.make_raster(t_pre=0, t_post=t_post, warped=True).mean(axis=0)
 
     extra = rst_sp - bl_sp
 
@@ -201,6 +214,29 @@ def count_spikes(response):
     exh_spikes = extra[inh_len: t_post].sum()/(inh_len*0.001)
 
     return inh_spikes, exh_spikes
+
+
+# check whether a sniff fals within the statistics, or gives the acceptable boundaries
+def is_good_sniff(one_sniff, sniff_stats):
+
+    if one_sniff is None:
+        inh_max = sniff_stats[-1]['inh_median'] + 1.5*sniff_stats[-1]['inh_sd']
+        exh_max = sniff_stats[-1]['exh_median'] + 1.5*sniff_stats[-1]['exh_sd']
+
+        return int(round(inh_max)), int(round(exh_max))
+
+    inh_min = sniff_stats[-1]['inh_median'] - 1.5*sniff_stats[-1]['inh_sd']
+    inh_max = sniff_stats[-1]['inh_median'] + 1.5*sniff_stats[-1]['inh_sd']
+    is_good = True
+    if one_sniff['inh_len'] < inh_min or one_sniff['inh_len'] > inh_max:
+        is_good = False
+    else:
+        exh_min = sniff_stats[-1]['exh_median'] - 1.5*sniff_stats[-1]['exh_sd']
+        exh_max = sniff_stats[-1]['exh_median'] + 1.5*sniff_stats[-1]['exh_sd']
+        if one_sniff['exh_len'] < exh_min or one_sniff['exh_len'] > exh_max:
+            is_good = True
+    return is_good
+
 
 def unwarp_time(response, t, inh_len=None, exh_len=None):
 
@@ -215,18 +251,14 @@ def unwarp_time(response, t, inh_len=None, exh_len=None):
 
         return t_unwarped
 
+def warp_time(response, t):
 
-def count_spikes(response):
-    all_sniffs = np.sort(response.baseline.sniff_data, order=['inh_len', 't_0'])
-    inh_len, exh_len = get_warping_parameters(all_sniffs, means=False)
-    t_post = inh_len + exh_len
+        all_sniffs = np.sort(response.baseline.sniff_data, order=['inh_len', 't_0'])
+        inh_len, exh_len = get_warping_parameters(all_sniffs, means=False)
 
-    rst_sp = response.make_raster(t_pre=0, t_post=t_post, warped=True).mean(axis=0)
-    bl_sp = response.baseline.make_raster(t_pre=0, t_post=t_post, warped=True).mean(axis=0)
+        if t <= inh_len:
+            t_warped = t/inh_len
+        else:
+            t_warped = 0.5 + (t-inh_len)/exh_len
 
-    extra = rst_sp - bl_sp
-
-    inh_spikes = extra[0: inh_len].sum()/(inh_len*0.001)
-    exh_spikes = extra[inh_len: t_post].sum()/(inh_len*0.001)
-
-    return inh_spikes, exh_spikes
+        return t_warped
